@@ -6,8 +6,12 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 
 add_library(dk1_core
+    src/boot_control.c
     src/boot_memory.c
+    src/boot_video.c
+    src/nmi_dispatch.c
     src/reset_state.c
+    src/state_sequence.c
 )
 target_include_directories(dk1_core PUBLIC include)
 
@@ -21,13 +25,12 @@ add_executable(dk1_pc src/main.c)
 target_link_libraries(dk1_pc PRIVATE dk1_core)
 
 enable_testing()
-add_executable(test_reset tests/test_reset.c)
-target_link_libraries(test_reset PRIVATE dk1_core)
-add_test(NAME reset_state COMMAND test_reset)
 
-add_executable(test_boot_memory tests/test_boot_memory.c)
-target_link_libraries(test_boot_memory PRIVATE dk1_core)
-add_test(NAME boot_memory COMMAND test_boot_memory)
+foreach(test_name IN ITEMS reset boot_memory boot_control boot_video nmi_dispatch state_sequence)
+    add_executable(test_${test_name} tests/test_${test_name}.c)
+    target_link_libraries(test_${test_name} PRIVATE dk1_core)
+    add_test(NAME ${test_name} COMMAND test_${test_name})
+endforeach()
 
 find_package(Python3 COMPONENTS Interpreter)
 if(Python3_Interpreter_FOUND)
