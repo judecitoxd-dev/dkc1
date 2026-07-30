@@ -6,6 +6,7 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 
 add_library(dk1_core
+    src/boot_memory.c
     src/reset_state.c
 )
 target_include_directories(dk1_core PUBLIC include)
@@ -23,3 +24,15 @@ enable_testing()
 add_executable(test_reset tests/test_reset.c)
 target_link_libraries(test_reset PRIVATE dk1_core)
 add_test(NAME reset_state COMMAND test_reset)
+
+add_executable(test_boot_memory tests/test_boot_memory.c)
+target_link_libraries(test_boot_memory PRIVATE dk1_core)
+add_test(NAME boot_memory COMMAND test_boot_memory)
+
+find_package(Python3 COMPONENTS Interpreter)
+if(Python3_Interpreter_FOUND)
+    add_test(
+        NAME cfg65816
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_cfg65816.py
+    )
+endif()
