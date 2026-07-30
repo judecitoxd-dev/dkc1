@@ -1,0 +1,60 @@
+{
+  "schema": 1,
+  "rom_sha256": "628147468c3539283197f58f03b94df49758a332831857481ea9cc31645f0527",
+  "symbols": [
+    {
+      "address": "008000",
+      "name": "reset_entry",
+      "confidence": "confirmed",
+      "kind": "routine"
+    },
+    {
+      "address": "008020",
+      "name": "main_boot_init",
+      "confidence": "confirmed",
+      "kind": "routine"
+    },
+    {
+      "address": "00A8C2",
+      "name": "clear_vram_dma",
+      "confidence": "confirmed",
+      "kind": "routine"
+    },
+    {
+      "address": "00A8E6",
+      "name": "clear_wram_bank0_and_continue",
+      "confidence": "confirmed",
+      "kind": "routine"
+    },
+    {
+      "address": "00A920",
+      "name": "clear_wram_bank1_dma",
+      "confidence": "confirmed",
+      "kind": "routine"
+    },
+    {
+      "address": "00A976",
+      "name": "native_nmi_trampoline",
+      "confidence": "confirmed",
+      "kind": "routine"
+    },
+    {
+      "address": "80A97A",
+      "name": "native_nmi_handler",
+      "confidence": "confirmed",
+      "kind": "routine"
+    },
+    {
+      "address": "00A99E",
+      "name": "native_irq_handler",
+      "confidence": "confirmed",
+      "kind": "routine"
+    },
+    {
+      "address": "00BA43",
+      "name": "reset_boot_counters",
+      "confidence": "probable",
+      "kind": "routine"
+    }
+  ]
+}
