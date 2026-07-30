@@ -4,7 +4,7 @@ This repository is an **early clean-room reimplementation workspace** for the SN
 
 ## Current status
 
-**Overall engineering progress: 1%**
+**Overall engineering progress: 2%**
 
 This percentage measures completion of the reimplementation pipeline, not the percentage of ROM bytes copied into C. ROM bytes, original graphics, music, level data, and other copyrighted assets are deliberately not committed.
 
@@ -12,11 +12,13 @@ This percentage measures completion of the reimplementation pipeline, not the pe
 |---|---:|
 | Cartridge identity / header verification | 100% |
 | HiROM bank manifest tooling | 100% |
-| Reset-vector and boot-entry analysis | 20% |
-| Routine discovery and symbol map | 1% |
-| Semantic C reimplementation | 0% |
+| Reset-vector and boot-entry analysis | 55% |
+| Routine discovery and symbol map | 8% |
+| Semantic C reimplementation | 1% |
 | PC rendering / widescreen | 0% |
 | Audio / input / save compatibility | 0% |
+
+The current C runtime models the CPU state established by reset and the verified DMA plan that clears 128 KiB WRAM and 64 KiB VRAM. It is not yet a playable game.
 
 See [`docs/PROGRESS.md`](docs/PROGRESS.md) for the milestone definition.
 
@@ -40,7 +42,10 @@ Expected SHA-256:
 python3 tools/rom_info.py "rom/Donkey Kong Country (USA) (Rev 2).sfc"
 python3 tools/bank_manifest.py "rom/Donkey Kong Country (USA) (Rev 2).sfc" build/banks.json
 python3 tools/dis65816.py "rom/Donkey Kong Country (USA) (Rev 2).sfc" --pc 00:8000 --count 40
+python3 tools/cfg65816.py "rom/Donkey Kong Country (USA) (Rev 2).sfc" build/cfg.json
 ```
+
+`cfg65816.py` exports addresses and graph metadata only; it does not export ROM bytes or an assembly listing.
 
 ## Build the C workspace
 
@@ -50,8 +55,6 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ./build/dk1_pc
 ```
-
-The current executable is a host-side verification shell. It does not yet run gameplay.
 
 ## Project rules
 
