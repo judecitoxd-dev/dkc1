@@ -91,12 +91,19 @@ def direct_target(insn: Instruction) -> int | None:
     return None
 
 
-def discover(rom: bytes, seeds: list[DecodeState], max_instructions: int) -> dict:
+def discover(
+    rom: bytes,
+    seeds: list[DecodeState],
+    max_instructions: int,
+    indirect_targets: dict[int, list[int]] | None = None,
+) -> dict:
+    indirect_targets = indirect_targets or {}
     pending = deque(seeds)
     visited: set[DecodeState] = set()
     routine_entries = {seed.pc for seed in seeds}
     edges: set[tuple[int, int, str]] = set()
     unresolved: set[tuple[int, str, str]] = set()
+    resolved_indirect: set[tuple[int, int]] = set()
     instruction_addresses: set[int] = set()
     width_variants: dict[int, set[tuple[bool, bool]]] = {}
 
@@ -134,7 +141,17 @@ def discover(rom: bytes, seeds: list[DecodeState], max_instructions: int) -> dic
             continue
 
         if key in INDIRECT_CONTROL:
-            unresolved.add((insn.pc, insn.mnemonic, insn.mode))
+            targets = indirect_targets.get(insn.pc, [])
+            if targets:
+                for target in targets:
+                    edges.add((insn.pc, target, "indirect"))
+                    resolved_indirect.add((insn.pc, target))
+                    routine_entries.add(target)
+                    pending.append(DecodeState(
+                        target, insn.state_after.m8, insn.state_after.x8
+                    ))
+            else:
+                unresolved.add((insn.pc, insn.mnemonic, insn.mode))
             if insn.mnemonic == "JSR":
                 pending.append(next_state)
             continue
@@ -181,6 +198,10 @@ def discover(rom: bytes, seeds: list[DecodeState], max_instructions: int) -> dic
             {"from": f"{src:06X}", "to": f"{dst:06X}", "kind": kind}
             for src, dst, kind in sorted(edges)
         ],
+        "resolved_indirect_control_flow": [
+            {"address": f"{pc:06X}", "target": f"{target:06X}"}
+            for pc, target in sorted(resolved_indirect)
+        ],
         "unresolved_control_flow": [
             {"address": f"{pc:06X}", "mnemonic": mnemonic, "mode": mode}
             for pc, mnemonic, mode in sorted(unresolved)
@@ -203,6 +224,13 @@ def main() -> int:
     )
     parser.add_argument("--m16", action="store_true")
     parser.add_argument("--x16", action="store_true")
+    parser.add_argument(
+        "--indirect",
+        action="append",
+        default=[],
+        metavar="SITE=TARGET",
+        help="resolve one indirect site; BB:AAAA=BB:AAAA, repeatable",
+    )
     parser.add_argument("--max-instructions", type=int, default=100000)
     args = parser.parse_args()
 
@@ -211,7 +239,19 @@ def main() -> int:
         DecodeState(parse_pc(value), not args.m16, not args.x16)
         for value in seed_values
     ]
-    result = discover(args.rom.read_bytes(), seeds, args.max_instructions)
+    indirect_targets: dict[int, list[int]] = {}
+    for item in args.indirect:
+        try:
+            site_text, target_text = item.split("=", 1)
+            site = parse_pc(site_text)
+            target = parse_pc(target_text)
+        except (ValueError, TypeError) as exc:
+            parser.error(f"invalid --indirect {item!r}: {exc}")
+        indirect_targets.setdefault(site, []).append(target)
+
+    result = discover(
+        args.rom.read_bytes(), seeds, args.max_instructions, indirect_targets
+    )
     result["seeds"] = [f"{seed.pc:06X}" for seed in seeds]
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
