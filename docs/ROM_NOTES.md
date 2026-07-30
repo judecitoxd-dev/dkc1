@@ -20,7 +20,9 @@ The user-provided dump was inspected locally; the ROM itself is not stored here.
 
 ## Early boot behavior confirmed
 
-The reset entry transitions the 65C816 into native mode, disables maskable interrupts, establishes direct-page/data-bank/stack state, enables FastROM, and enters the first memory-initialization routine.
+The reset entry transitions the 65C816 into native mode, disables maskable
+interrupts, establishes direct-page/data-bank/stack state, enables FastROM, and
+enters the first memory-initialization routine.
 
 Confirmed DMA behavior represented semantically in C:
 
@@ -37,5 +39,14 @@ Confirmed scheduler and boot-state behavior:
 - `$050C` stores the sequence element index.
 - `$00:BA43-$00:BA8D` establishes initial control variables and request IDs.
 - `$00:BA91-$00:BAEF` establishes the first verified PPU configuration and VRAM loops.
+
+## Level and object dispatch behavior confirmed
+
+- `$003E` is used as a 230-value level/location dispatch identifier.
+- `$80:C56C` stores paired bank-$80 callbacks selected by `$80:9723`.
+- `$BF:FDC8` stores bank-$80 entry callbacks selected by `$80:86E0`.
+- `$B9:801E`, `$B9:81EA`, and `$B9:83B6` are parallel 230-word dispatch tables.
+- `$BF:817C` is a 122-entry object-type record table with a handler word and metadata word.
+- `$130D/$1341` form a dynamic 24-bit per-object callback and are intentionally not treated as a static table.
 
 Addresses and behavior are recorded; no original ROM or asset bytes are committed.
