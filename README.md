@@ -5,7 +5,7 @@ game identified by the user-provided cartridge dump.
 
 ## Current status
 
-**Overall engineering progress: 4%**
+**Overall engineering progress: 5%**
 
 The percentage measures completed, tested reimplementation work. It is not the
 percentage of ROM bytes copied into C. ROM bytes, original graphics, music,
@@ -15,21 +15,27 @@ level geometry, and other copyrighted assets are deliberately not committed.
 |---|---:|
 | Cartridge identity / HiROM mapping | 100% |
 | Reset-vector and boot-entry analysis | 80% |
-| Routine discovery and symbol map | 35% |
-| Semantic portable C | 5% |
-| PC rendering / widescreen | 1% |
+| Routine discovery and symbol map | 40% |
+| Semantic portable C | 7% |
+| PC rendering / widescreen | 4% |
 | Audio / input / save compatibility | 0% |
 
 Current verified analysis covers **725 routine entries**, **21,143 unique
 instruction addresses**, and **423 confirmed indirect edges**. The C runtime now
 models reset state, WRAM/VRAM clearing, early boot control, initial PPU setup,
-the NMI scheduler, state sequencing, and the six-callback dispatch record for
-all 230 level/location identifiers. It is not yet playable.
+the NMI scheduler, state sequencing, all 230 level dispatch records, the two
+object pools, 122 object-type records, dynamic object callback composition, and
+the original camera clamp. It is not yet playable.
+
+The camera origin is now separated from host viewport dimensions. That is the
+first concrete widescreen interface: the simulation can preserve original
+camera behavior while a PC renderer requests a wider visible rectangle.
 
 See [`docs/PROGRESS.md`](docs/PROGRESS.md),
 [`docs/NMI_SCHEDULER.md`](docs/NMI_SCHEDULER.md),
-[`docs/BOOT_VIDEO.md`](docs/BOOT_VIDEO.md), and
-[`docs/LEVEL_DISPATCH.md`](docs/LEVEL_DISPATCH.md).
+[`docs/BOOT_VIDEO.md`](docs/BOOT_VIDEO.md),
+[`docs/LEVEL_DISPATCH.md`](docs/LEVEL_DISPATCH.md), and
+[`docs/OBJECT_CAMERA.md`](docs/OBJECT_CAMERA.md).
 
 ## ROM required locally
 
@@ -70,7 +76,15 @@ ctest --test-dir build --output-on-failure
 ./build/dk1_pc
 ```
 
-There are currently eight automated tests.
+There are currently ten automated tests.
+
+## Will this become functional?
+
+The architecture is suitable for a functional native PC reimplementation, but
+completion is not automatic or guaranteed. A playable build still requires the
+translated frame callbacks, object behaviors, collision, level/tilemap loading,
+rendering, audio, input, saves, menus, and trace validation. Progress only moves
+when those systems are implemented and tested; generated C stubs do not count.
 
 ## Project rules
 
@@ -78,4 +92,4 @@ There are currently eight automated tests.
 - Commit human-authored clean-room C and address-only analysis metadata.
 - Every reimplemented routine must reference its SNES address and describe behavior.
 - Generated C stubs do not count as progress.
-- Widescreen rendering begins only after camera, object, and tilemap interfaces are understood.
+- Widescreen rendering is built around verified camera, object, and tilemap interfaces.
