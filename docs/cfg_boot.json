@@ -1,0 +1,39 @@
+{
+  "schema": 1,
+  "summary_only": true,
+  "instruction_state_count": 3851,
+  "unique_instruction_addresses": 3849,
+  "routine_entry_count": 115,
+  "routine_entries": [
+    "008000","00A8B7","00A8C2","00A920","00A976","00A99E","00BA43","00C0D7","00C226",
+    "8080A9","8081C7","8081F3","80822C","808279","8082D2","8082EB","808301","808344","808367","80839D","80845B","8084D0","808517","808535","8086C5","808943","809723","809ADA","809BAA","809BAE","809C9D","809CDE","809E2C","809F30","809F4F","809F6F","809FA8","80A152","80A202","80A211","80A8B7","80A8C2","80A94D","80A98E","80A998","80C288","80C3ED","80C40A","80C456","80C47C",
+    "818705","81883F","8188A8","81890E","818B6B","818CEF","818DFA","819489",
+    "8AB0ED","8AB133","8AB1AF","8AB1CB","8AB414","8AB43C","8AB4EB","8AB504",
+    "B5804C","B58052","B6A816","B881FE","B88202","B88258","B88263","B882CF","B88391","B88398","B883A8","B88425","B8932D","B8A909","B8A975","B8B6AC","B98000","B98010","B98017","B98766","B99023","B99027","B990E7","B999AD","B999B1",
+    "BCB051","BCB062","BCB079","BCB0C9","BCB791","BCB882","BCBABD","BCBAC1","BCBBDF",
+    "BDF210","BDF214","BDF269","BDF27B","BDF2EF","BDF35B","BDF383","BDF3A1","BDF3B7","BDF408","BDF48B","BDFDD7","BF80F5","BF814D","BF8151"
+  ],
+  "resolved_indirect_control_flow": [
+    {"address":"8080C5","target":"80822C"},
+    {"address":"8080C5","target":"808279"},
+    {"address":"8080C5","target":"8082D2"},
+    {"address":"8080C5","target":"809723"},
+    {"address":"8080C5","target":"809ADA"},
+    {"address":"80A98B","target":"8080A9"},
+    {"address":"80A98B","target":"80A98E"},
+    {"address":"80A98B","target":"80A998"}
+  ],
+  "unresolved_control_flow": [
+    {"address":"8086E0","mnemonic":"JML","mode":"absl"},
+    {"address":"809729","mnemonic":"JSR","mode":"absix"},
+    {"address":"80972D","mnemonic":"JMP","mode":"absix"},
+    {"address":"B5807D","mnemonic":"JMP","mode":"absix"},
+    {"address":"B8A9CA","mnemonic":"JSR","mode":"absix"},
+    {"address":"B9800D","mnemonic":"JMP","mode":"absix"},
+    {"address":"B98014","mnemonic":"JMP","mode":"absix"},
+    {"address":"B9801B","mnemonic":"JMP","mode":"absix"}
+  ],
+  "truncated": false,
+  "instruction_limit": 300000,
+  "seeds": ["008000","00A976","00A99E"]
+}
