@@ -1,0 +1,11 @@
+/build/
+/rom/
+/extracted/
+/generated/
+*.sfc
+*.smc
+*.fig
+*.swc
+*.zip
+__pycache__/
+*.pyc
