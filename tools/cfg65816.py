@@ -212,6 +212,25 @@ def discover(
     }
 
 
+def load_indirect_map(path: Path) -> dict[int, list[int]]:
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    sites = raw.get("sites", raw)
+    result: dict[int, list[int]] = {}
+    if not isinstance(sites, dict):
+        raise ValueError("indirect map must contain an object named 'sites'")
+    for site_text, targets in sites.items():
+        site = int(site_text.replace(":", ""), 16)
+        if not isinstance(targets, list):
+            raise ValueError(f"targets for {site_text} must be a list")
+        parsed = []
+        for target_text in targets:
+            if not isinstance(target_text, str):
+                raise ValueError(f"target for {site_text} must be a string")
+            parsed.append(int(target_text.replace(":", ""), 16))
+        result[site] = parsed
+    return result
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("rom", type=Path)
@@ -231,6 +250,11 @@ def main() -> int:
         metavar="SITE=TARGET",
         help="resolve one indirect site; BB:AAAA=BB:AAAA, repeatable",
     )
+    parser.add_argument(
+        "--indirect-map",
+        type=Path,
+        help="JSON file containing address-only confirmed indirect targets",
+    )
     parser.add_argument("--max-instructions", type=int, default=100000)
     args = parser.parse_args()
 
@@ -240,6 +264,11 @@ def main() -> int:
         for value in seed_values
     ]
     indirect_targets: dict[int, list[int]] = {}
+    if args.indirect_map is not None:
+        try:
+            indirect_targets.update(load_indirect_map(args.indirect_map))
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            parser.error(f"invalid --indirect-map: {exc}")
     for item in args.indirect:
         try:
             site_text, target_text = item.split("=", 1)
