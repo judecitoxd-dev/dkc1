@@ -1,54 +1,43 @@
 # Progress accounting
 
-## Current total: 97%
+## Current total: 98%
 
-Ninety-seven percent refers to completed engineering infrastructure and translated systems, not ninety-seven percent playable gameplay.
+Ninety-eight percent refers to completed engineering infrastructure and translated systems, not ninety-eight percent playable gameplay.
 
-The public headline is intentionally held below 100% because the project still lacks a complete original-compatible level loop, actor set, progression and audio output.
+The public headline remains below 100% because a complete original-compatible level loop, original actor behaviors, progression and audible DSP output are still absent.
 
-## Completed in the 96-to-97% stage
+## Completed in the 97-to-98% stage
 
-### Original ROM terrain contacts
+### Player floor/wall/ceiling envelope
 
-- Added `player_terrain_runtime`, backed by the existing level terrain configuration, ROM collision blocks and 64 translated shape curves.
-- Samples left, center and right foot positions and selects the closest valid support surface.
-- Places the preview on an authentic surface and derives a vertical camera value from the 512-pixel collision space.
-- Resolves falling crossings and small slope changes, clearing vertical velocity/subpixels on landing.
-- Propagates the original descriptor/shape attributes into the player runtime for later material-specific behavior.
+- Added `dk1_rom_terrain_point_solid`, backed by the existing ROM collision map and translated shape curves.
+- Added leading-side probes at lower body, center and upper body positions.
+- Horizontal collisions restore the old wrapped 16-bit X coordinate and clear velocity, target velocity and subpixel X.
+- Added three head probes that stop upward movement at solid cell undersides.
+- Ground, wall and ceiling attributes are kept separately, along with left/right/ceiling flags and contact counters.
+- Material changes are measurable, but material-specific damage, water and conveyor behavior is not invented.
 
-### Correct unsigned world X
+### Scheduler-driven animated actor callback
 
-- Changed the host player world-X representation from signed to unsigned 16-bit.
-- Preserves the original wrapped 16-bit integration while supporting camera/map coordinates above `$8000`.
-- Added coverage using terrain profile 1 at world X `$8630`, corresponding to a level region above the signed boundary.
-
-### Live dispatcher bridge
-
-- Added `player_live_runtime` and connected it to `software_frontend_step`.
-- Grounded frames are identified with state 1 and its exact handler `$BF:87FD` plan.
-- A jump enters state 11 and executes the translated `$BF:8FA7` local handler.
-- The handler's `MOVE` request is satisfied by the fixed-point movement and terrain resolver.
-- Landing transitions the live bridge back to state 1.
-
-### ROM-aware frontend initialization
-
-- Added `dk1_software_frontend_init_with_rom`.
-- X11, frontend probe and whole-cartridge frontend validation can bind terrain before the first frame.
-- The old ROM-less initializer remains for deterministic synthetic tests and fallback use.
-- The object renderer uses a 512-pixel vertical origin when authentic terrain is active and retains 224 for the legacy fallback.
+- Added `object_actor_runtime` for original object type `$73` / callback `$BF:8453`.
+- Runs the object through the original primary scheduler pass.
+- Verifies the callback selected by the type table.
+- Advances the translated animation interpreter.
+- Builds the resulting frame through the confirmed OAM and frame-DMA paths.
+- The validation frame is `$0330`: 12 pieces and 576 graphics bytes.
+- Touch-deactivate is an explicitly clean-room interaction policy, not a claim about type `$73`'s original game identity.
 
 ## Validation
 
-- Added `player_terrain_runtime`, `player_live_runtime` and `software_frontend_terrain` test targets.
-- Configured validation increases from 84 to 87 tests.
-- Fifteen focused tests pass locally with `-Wall -Wextra -Wpedantic -Werror`.
-- The gameplay validator checks an authentic terrain jump/landing trace and the state-11-to-state-1 transition.
-- The frontend validator now reports how many of the 230 scenes bind ROM terrain and execute a local state on its test frame; its aggregate signature must be regenerated because runtime state changed.
+- Added `player_terrain_envelope` and `object_actor_runtime` tests.
+- Focused validation increases from 15 to 17 passing tests with `-Wall -Wextra -Wpedantic -Werror`.
+- Configured project validation increases from 87 to 89 tests: 88 C tests plus the Python control-flow test.
+- The gameplay validator checks a solid ROM terrain point and the type-$73 scheduler/animation/OAM/DMA/touch pipeline.
 
 ## Next measurable targets
 
-- Add wall/ceiling and material-specific side effects to the terrain bridge.
-- Drive additional translated states from controller input and collision results.
-- Translate one common barrel or enemy through scheduler, collision, animation, DMA and OAM.
-- Continue from the IPL transfer into the loaded driver's command/timer loop.
-- Begin level completion, menus, progression and SRAM compatibility.
+- Map material attribute values to their confirmed original side-effect handlers.
+- Expand the live controller bridge beyond states 1 and 11.
+- Identify and translate one original barrel or enemy state machine rather than using the generic animated-render actor callback.
+- Continue the loaded SPC driver into its command/timer loop and implement DSP/BRR output.
+- Implement level completion, menus, progression and SRAM compatibility.

@@ -4,6 +4,7 @@
 #include "dk1/apu_driver_catalog.h"
 #include "dk1/nmi_vram_dma.h"
 #include "dk1/level_terrain_config.h"
+#include "dk1/object_actor_runtime.h"
 #include "dk1/object_animation_script.h"
 #include "dk1/object_frame_dma.h"
 #include "dk1/object_frame_layout.h"
@@ -36,6 +37,10 @@ int main(int argc, char **argv) {
     Dk1PlayerLiveRuntime live_player;
     uint16_t terrain_camera_y = 0u;
     unsigned live_frames = 0u;
+    Dk1ObjectActorRuntime actor;
+    bool actor_touch = false;
+    Dk1TerrainSample solid_point = {0};
+    bool terrain_point_solid = false;
     Dk1ObjectAnimationScriptState animation;
     Dk1AnimationScriptResult animation_result;
     Dk1ObjectFrameLayout frame_layout;
@@ -104,6 +109,16 @@ int main(int argc, char **argv) {
             ++invalid;
     }
 
+    if (!dk1_object_actor_spawn(&actor, &rom, 3u, 0u, 100u, 80,
+                                DK1_ACTOR_INTERACTION_TOUCH_DEACTIVATE) ||
+        !dk1_object_actor_step(&actor, &rom, &visual_base, transform, style, 0u,
+                               100u, 80, 8, 8, &actor_touch) ||
+        !actor_touch || actor.active ||
+        actor.callback_pc != DK1_ANIMATED_RENDER_CALLBACK_PC ||
+        actor.animation.frame != 0x0330u || actor.visual.pieces != 12u ||
+        actor.visual.dma_bytes != 576u)
+        ++invalid;
+
     dk1_spc700_bootstrap_init(&spc, &apu);
     spc_ok = dk1_spc700_bootstrap_send_byte(&spc, 1u, 0x2000u, 0x12u, 256u) &&
              dk1_spc700_bootstrap_send_byte(&spc, 3u, 0x2001u, 0x34u, 256u) &&
@@ -149,7 +164,10 @@ int main(int argc, char **argv) {
             }
             dk1_player_live_step(&live_player, &terrain_player,
                                  &terrain_runtime, 0u, 0u);
-            if (terrain_player.airborne || terrain_player.motion.world_y != 367 ||
+            terrain_point_solid = dk1_rom_terrain_point_solid(
+                &terrain_runtime.view, 48, 340, &solid_point);
+            if (!terrain_point_solid ||
+                terrain_player.airborne || terrain_player.motion.world_y != 367 ||
                 terrain_runtime.support.floor_y != 351 ||
                 live_player.state != 1u || live_player.handler_pc != 0xBF87FDu ||
                 live_player.local_steps != 16u || live_player.plan_steps != 1u)
@@ -174,12 +192,14 @@ int main(int argc, char **argv) {
     printf("player_states=%u planned=%u local=%u invalid=%u "
            "translation=%016llX apu_boot=%016llX animation=%04X "
            "frame_pieces=%u frame_layout=%016llX screen_oam=%u "
-           "frame_dma_records=%u frame_dma_bytes=%u visual_pieces=%u visual_dma=%u spc_steps=%llu "
+           "frame_dma_records=%u frame_dma_bytes=%u visual_pieces=%u visual_dma=%u "
+           "actor_callback=%06X actor_pieces=%u actor_dma=%u actor_touch=%u spc_steps=%llu "
            "driver_code=%016llX driver_data=%016llX driver_ram=%016llX "
            "driver_steps=%llu driver_pc=%04X driver_stop=%u driver_vector=%04X "
            "motion_x=%d motion_y=%d motion_vx=%04X motion_vy=%04X "
            "motion_subx=%04X motion_suby=%04X terrain_floor=%d terrain_center=%d "
-           "terrain_attr=%04X terrain_camera=%u live_frames=%u live_dispatch=%llu "
+           "terrain_attr=%04X terrain_point=%u terrain_point_attr=%04X terrain_camera=%u "
+           "live_frames=%u live_dispatch=%llu "
            "live_local=%llu live_plan=%llu live_state=%u live_handler=%06X "
            "ipl_bytes=%llu ipl_pc=%04X "
            "apu_sources=%u apu_bytes=%u apu_catalog=%016llX apu_payload=%016llX\n",
@@ -197,6 +217,10 @@ int main(int argc, char **argv) {
            (unsigned)frame_dma.bytes,
            (unsigned)visual_stats.pieces,
            (unsigned)visual_stats.dma_bytes,
+           (unsigned)actor.callback_pc,
+           (unsigned)actor.visual.pieces,
+           (unsigned)actor.visual.dma_bytes,
+           actor_touch ? 1u : 0u,
            (unsigned long long)spc.instructions,
            (unsigned long long)driver.code_signature,
            (unsigned long long)driver.data_signature,
@@ -214,6 +238,8 @@ int main(int argc, char **argv) {
            (int)terrain_runtime.support.floor_y,
            (int)terrain_player.motion.world_y,
            (unsigned)terrain_runtime.last_attributes,
+           terrain_point_solid ? 1u : 0u,
+           (unsigned)solid_point.attributes,
            (unsigned)terrain_camera_y,
            live_frames,
            (unsigned long long)live_player.dispatches,

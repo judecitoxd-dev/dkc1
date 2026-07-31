@@ -14,6 +14,7 @@ add_library(dk1_core
     src/player_core_runtime.c
     src/player_visual_runtime.c
     src/player_final_runtime.c
+    src/object_actor_runtime.c
     src/object_screen_oam.c
     src/object_frame_dma.c
     src/spc700_driver_startup.c
@@ -125,6 +126,7 @@ foreach(test_name IN ITEMS
     player_motion
     player_preview_runtime
     player_terrain_runtime
+    player_terrain_envelope
     player_live_runtime
     software_frontend_terrain
     spc700_ipl_protocol
@@ -132,6 +134,7 @@ foreach(test_name IN ITEMS
     player_core_runtime
     player_visual_runtime
     player_final_runtime
+    object_actor_runtime
     object_screen_oam
     object_frame_dma
     spc700_driver_startup

@@ -83,3 +83,20 @@ bool dk1_rom_terrain_find_floor(const Dk1RomTerrainView *view,
     *sample = (Dk1TerrainSample){0};
     return false;
 }
+
+bool dk1_rom_terrain_point_solid(const Dk1RomTerrainView *view,
+                                 int32_t world_x, int32_t world_y,
+                                 Dk1TerrainSample *sample) {
+    Dk1TerrainSample local;
+    int32_t cell_y;
+    if (sample == NULL) sample = &local;
+    *sample = (Dk1TerrainSample){0};
+    if (view == NULL || world_x < 0 || world_y < 0 || world_y >= 512) return false;
+    cell_y = world_y & ~(int32_t)(DK1_TERRAIN_CELL_SIZE - 1u);
+    if (!dk1_rom_terrain_sample_cell(view, world_x, cell_y, sample)) return false;
+    if (world_y > sample->floor_y) {
+        *sample = (Dk1TerrainSample){0};
+        return false;
+    }
+    return true;
+}
