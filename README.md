@@ -1,28 +1,30 @@
 # dk1 — clean-room PC reimplementation workspace
 
-This repository is an early clean-room native PC reimplementation workspace for the SNES game identified by the user-provided cartridge dump.
+This repository is a clean-room native PC reimplementation workspace for the SNES game identified by the user-provided cartridge dump.
 
 ## Current status
 
-**Overall engineering progress: 26%**
+**Overall engineering progress: 40%**
 
-The percentage measures completed, tested reimplementation work. It is not the percentage of ROM bytes copied into C. ROM bytes, original graphics, music, level geometry, and other copyrighted assets are deliberately not committed.
+The percentage measures completed, tested reimplementation work. It is not the percentage of ROM bytes copied into C, and it is not the percentage of gameplay that is currently playable. ROM bytes, original graphics, music, level geometry, and other copyrighted assets are deliberately not committed.
 
 | Area | Progress |
 |---|---:|
 | Cartridge identity / HiROM mapping | 100% |
 | Reset-vector and boot-entry analysis | 80% |
-| Routine discovery and symbol map | 55% |
-| Semantic portable C | 43% |
-| PC rendering / widescreen | 45% |
-| Input / saves / menus / compatibility | 25% |
+| Routine discovery and symbol map | 62% |
+| Semantic portable C | 55% |
+| PC rendering / widescreen | 68% |
+| Input / saves / menus / compatibility | 30% |
 | Audio | 0% |
 
-The runtime now resolves all 230 level/location ids to their real terrain profiles, parses all 23 compact PPU presets, parses the 30 VRAM package lists and their 96 DMA records, translates the `$B8:982F` graphics decompressor, reconstructs ROM- and WRAM-sourced VRAM uploads, and can render authentic decompressed 4bpp cartridge tiles with a local-ROM palette.
+The runtime now reconstructs a scene from any of the 230 level/location ids: it selects one of 31 initializer recipes, applies the correct PPU preset, terrain profile, VRAM package sequence, CGRAM uploads, and exact camera bounds, then exposes VRAM/CGRAM/PPU state to 2/4/8bpp host renderers. It also preserves the corrected visual-streaming map order used by `$81:8CEF` and treats map cell zero as the blank sentinel.
 
-The executable frame path remains functional. `dk1_asset_probe` previews raw ranges, `dk1_level_probe` renders real map/collision metadata, and `dk1_vram_probe` reconstructs a selected VRAM package and produces a tile sheet. A complete original-compatible level is still not playable.
+Local whole-cartridge validation reconstructed **230/230 scenes with zero failures** and produced the deterministic signature `6F88519C029414AB`. All 31 unique scene recipes produced previews: 23 through direct streaming-map composition and eight through reconstructed VRAM fallback.
 
-See [`docs/PROGRESS.md`](docs/PROGRESS.md), [`docs/FRAME_RUNTIME.md`](docs/FRAME_RUNTIME.md), [`docs/ROM_ASSETS_TERRAIN.md`](docs/ROM_ASSETS_TERRAIN.md), [`docs/LEVEL_MAP_PIPELINE.md`](docs/LEVEL_MAP_PIPELINE.md), and [`docs/VRAM_PACKAGE_PIPELINE.md`](docs/VRAM_PACKAGE_PIPELINE.md).
+This is a major functional data-path milestone, but it is still **not a playable or pixel-perfect port**. The compositor does not yet reproduce every SNES priority, window, color-math, animation, sprite, and initializer side effect.
+
+See [`docs/PROGRESS.md`](docs/PROGRESS.md), [`docs/SCENE_RECONSTRUCTION.md`](docs/SCENE_RECONSTRUCTION.md), [`docs/FRAME_RUNTIME.md`](docs/FRAME_RUNTIME.md), [`docs/LEVEL_MAP_PIPELINE.md`](docs/LEVEL_MAP_PIPELINE.md), and [`docs/VRAM_PACKAGE_PIPELINE.md`](docs/VRAM_PACKAGE_PIPELINE.md).
 
 ## ROM required locally
 
@@ -47,33 +49,50 @@ ctest --test-dir build --output-on-failure
 ./build/dk1_pc
 ```
 
-There are currently **33 automated tests**: 32 C runtime tests and one Python control-flow test.
+There are currently **46 automated tests configured**: 45 C runtime tests and one Python control-flow test. The 13 tests introduced in the 26-to-40% stage pass locally with warnings treated as errors.
 
-## Level map and collision preview
+## Scene preview
+
+```bash
+./build/dk1_scene_probe \
+  "rom/Donkey Kong Country (USA) (Rev 2).sfc" \
+  0 0 128 384 224 scene0.ppm
+```
+
+Arguments after the ROM are level id, camera X, camera Y, viewport width, viewport height, and output path. The viewport can be wider than the SNES display while the original camera bounds remain active.
+
+## Validate every scene
+
+```bash
+./build/dk1_scene_validate \
+  "rom/Donkey Kong Country (USA) (Rev 2).sfc"
+```
+
+Expected result for the supported dump:
+
+```text
+scenes=230 failed=0 signature=6F88519C029414AB
+```
+
+## Other probes
 
 ```bash
 ./build/dk1_level_probe \
   "rom/Donkey Kong Country (USA) (Rev 2).sfc" \
   0 8 level0-diagnostic.ppm
-```
 
-## Reconstructed VRAM tile sheet
-
-```bash
 ./build/dk1_vram_probe \
   "rom/Donkey Kong Country (USA) (Rev 2).sfc" \
   1 0xB9A1DC 0x3000 0 256 package1.ppm
 ```
 
-This applies package 1, reads palette data from the local ROM, and renders 256 reconstructed 4bpp tiles beginning at VRAM word `$3000`.
+## What remains before gameplay
 
-## Will this become functional?
-
-The architecture supports a functional native port and now reaches original map, collision, PPU, DMA-package, compressed graphics, and palette data. A playable original-compatible build still needs exact level initialization sequencing, palette-upload aggregation, full background composition, material/neighbor collision side effects, translated actor callbacks and animation, a PC window backend, audio, saves, menus, and frame-trace comparison against the SNES version.
+A playable original-compatible build still needs translated player and enemy callbacks, exact movement and neighboring-cell collision side effects, sprite/OAM animation, dynamic level streaming, complete priority/window/color-math behavior, a real PC window and controller backend, audio, saves, menus, and frame-trace comparison against the SNES version.
 
 ## Project rules
 
-- Never commit a ROM, extracted assets, or generated binary dumps.
+- Never commit a ROM, extracted assets, decompressed dumps, or generated screenshots.
 - Commit human-authored clean-room C and address-only analysis metadata.
 - Every translated routine keeps a reference to its SNES source address and behavior.
 - Generated C stubs do not count as progress.
