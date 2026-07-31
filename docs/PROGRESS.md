@@ -1,6 +1,6 @@
 # Progress accounting
 
-## Current total: 5%
+## Current total: 6%
 
 The total is milestone-weighted so it cannot be inflated by generating thousands
 of meaningless C stubs.
@@ -9,14 +9,14 @@ of meaningless C stubs.
 |---|---:|---:|---:|
 | Reproducible ROM identification and mapping | 5% | 100% | 5.00% |
 | Function discovery, control-flow graph, symbols | 15% | 40% | 6.00% |
-| Portable gameplay/system C | 45% | 7% | 3.15% |
-| Graphics, camera, tilemaps, widescreen | 15% | 4% | 0.60% |
+| Portable gameplay/system C | 45% | 9% | 4.05% |
+| Graphics, camera, tilemaps, widescreen | 15% | 6% | 0.90% |
 | Audio | 8% | 0% | 0.00% |
 | Input, saves, menus, compatibility | 7% | 0% | 0.00% |
-| Validation and packaging | 5% | 4% | 0.20% |
+| Validation and packaging | 5% | 5% | 0.25% |
 
-Weighted pipeline foundation: **14.95%**. The public headline remains a
-conservative **5%** because the executable still has no playable scene.
+Weighted pipeline foundation: **16.20%**. The public headline remains a
+conservative **6%** because the executable still has no playable scene.
 
 ## What counts as converted
 
@@ -29,22 +29,23 @@ A routine counts only when:
 
 ## Completed in this stage
 
-- Confirmed 58 object slots represented by even WRAM offsets from `$0000` through `$0072`.
-- Confirmed the primary update pool at slots `1-25` and the secondary pool at slots `26-57`.
-- Confirmed object type, position, flags, script, and callback parallel arrays.
-- Reimplemented 24-bit object callback composition from `$130D/$1341`.
-- Added the complete 122-record `$BF:817C` object-type dispatch table to portable C.
-- Preserved the observed object ordering value (`attributes & $003F`) and special-pass bit (`$0080`).
-- Confirmed `$088B/$0895` as the camera X/Y origin from object rendering subtraction.
-- Confirmed horizontal limits `$1B23/$1B25` and the original vertical clamp behavior.
-- Added a configurable host viewport rectangle so widescreen dimensions remain separate from original simulation state.
-- Expanded automated validation from eight to ten tests.
+- Translated the secondary object loop at `$BF:815E-$BF:8175`.
+- Translated the primary object selection routine at `$BF:8000-$BF:80F4`.
+- Preserved secondary-before-primary frame ordering.
+- Preserved the negative `$1929` primary-delay behavior.
+- Implemented normal, restricted, focus, and special primary passes.
+- Preserved special handling for types `$17`, `$26`, `$31`, and `$45`.
+- Preserved the type `$26` state checks against `$1029` values `0` and `5`.
+- Connected selected type ids to their confirmed bank-`$BF` callbacks.
+- Translated the BG1/BG2 half-speed parallax output at `$80:8973-$80:89B3`.
+- Exposed object pass and PPU scroll diagnostics in the host executable.
+- Expanded automated validation from ten to twelve tests.
 
 ## Next measurable targets
 
-- Translate the primary object iteration policy at `$BF:8000-$BF:80F2` into host callback invocation.
-- Replace translated object callback addresses with stable host callback identifiers.
-- Identify collision and terrain-query fields used by the shared frame callbacks.
-- Determine tilemap streaming coordinates derived from camera X/Y.
-- Render the first static level background before enabling gameplay movement.
-- Continue classifying the remaining dynamic script callback sites without guessing targets.
+- Translate the first shared object callbacks reached by the most common type records.
+- Add a host callback registry that replaces translated SNES callback addresses with C functions.
+- Identify collision and terrain-query fields used by `$80:9738` and related frame paths.
+- Determine tilemap streaming coordinates and VRAM destinations derived from camera movement.
+- Render the first static tilemap layer before enabling gameplay movement.
+- Continue classifying dynamic script callback sites without guessing targets.
