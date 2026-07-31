@@ -47,6 +47,21 @@ Confirmed scheduler and boot-state behavior:
 - `$BF:FDC8` stores bank-$80 entry callbacks selected by `$80:86E0`.
 - `$B9:801E`, `$B9:81EA`, and `$B9:83B6` are parallel 230-word dispatch tables.
 - `$BF:817C` is a 122-entry object-type record table with a handler word and metadata word.
-- `$130D/$1341` form a dynamic 24-bit per-object callback and are intentionally not treated as a static table.
+- `$130D/$1341` form a dynamic 24-bit per-object callback.
+- `$BF:8000` updates primary slots `1-25`; `$BF:815E` updates secondary slots `26-57`.
+- `$0D45` is the parallel object type/active array.
+- `$0B19/$0BC1` are object world X/Y arrays.
+- `$116D` is the object script pointer array.
+- `$81:D931` and `$BE:812E` dispatch the address in `$1341,X` using the low byte of `$130D,X` as the bank.
+- `$BE:8197` is the confirmed script operation that writes the callback address and bank.
+
+## Camera behavior confirmed
+
+- `$088B` is camera X and `$0895` is camera Y.
+- Rendering paths subtract those values from object world positions.
+- `$1B23/$1B25` are the horizontal camera minimum and maximum.
+- `$80:9C9D-$80:9CDD` clamps X to those limits and normally clamps Y to `0..$0200`.
+- Mode `$0009` bypasses the upper Y clamp.
+- `$0889/$0897` are auxiliary camera values cleared whenever the corresponding axis is clamped.
 
 Addresses and behavior are recorded; no original ROM or asset bytes are committed.
