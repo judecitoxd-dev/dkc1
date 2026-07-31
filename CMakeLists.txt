@@ -6,14 +6,17 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 
 add_library(dk1_core
+    src/bg_renderer.c
     src/boot_control.c
     src/boot_memory.c
     src/boot_video.c
     src/camera.c
+    src/cgram_image.c
     src/dkc_decompress.c
     src/frame_runtime.c
     src/host_callback.c
     src/input.c
+    src/level_camera_bounds.c
     src/level_diagnostic.c
     src/level_dispatch.c
     src/level_map.c
@@ -24,6 +27,9 @@ add_library(dk1_core
     src/object_executor.c
     src/object_runtime.c
     src/object_scheduler.c
+    src/ppu_bg_renderer.c
+    src/ppu_compositor.c
+    src/ppu_layout.c
     src/ppu_preset.c
     src/ppu_scroll.c
     src/preview_actor.c
@@ -32,6 +38,12 @@ add_library(dk1_core
     src/rgba_surface.c
     src/rom_image.c
     src/rom_terrain.c
+    src/scene_memory.c
+    src/scene_package_plan.c
+    src/scene_recipe.c
+    src/scene_runtime.c
+    src/scene_signature.c
+    src/scene_view.c
     src/snes_graphics.c
     src/state_sequence.c
     src/terrain.c
@@ -59,21 +71,31 @@ target_link_libraries(dk1_level_probe PRIVATE dk1_core)
 add_executable(dk1_vram_probe src/vram_probe.c)
 target_link_libraries(dk1_vram_probe PRIVATE dk1_core)
 
+add_executable(dk1_scene_probe src/scene_probe.c)
+target_link_libraries(dk1_scene_probe PRIVATE dk1_core)
+
+add_executable(dk1_scene_validate src/scene_validate.c)
+target_link_libraries(dk1_scene_validate PRIVATE dk1_core)
+
 enable_testing()
 
 foreach(test_name IN ITEMS
     reset
+    bg_renderer
     boot_memory
     boot_control
     boot_video
     camera
+    cgram_image
     dkc_decompress
     frame_runtime
     host_callback
     input
+    level_camera_bounds
     level_diagnostic
     level_dispatch
     level_map
+    level_map_visual
     level_metatile
     level_profile_map
     level_terrain_config
@@ -81,6 +103,9 @@ foreach(test_name IN ITEMS
     object_executor
     object_runtime
     object_scheduler
+    ppu_bg_renderer
+    ppu_compositor
+    ppu_layout
     ppu_preset
     ppu_scroll
     preview_actor
@@ -88,7 +113,13 @@ foreach(test_name IN ITEMS
     rgba_surface
     rom_image
     rom_terrain
+    scene_package_plan
+    scene_recipe
+    scene_runtime
+    scene_signature
+    scene_view
     snes_graphics
+    snes_graphics_depth
     state_sequence
     terrain
     tilemap_renderer
