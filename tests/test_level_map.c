@@ -15,6 +15,7 @@ int main(void) {
     Dk1LevelTerrainConfig config = {0};
     uint16_t tiles[4u * 64u] = {0};
     uint16_t cell = 0u;
+    size_t row = 0u;
     size_t i = 0u;
     assert(bytes != NULL);
     assert(dk1_rom_image_init(&rom, bytes, DK1_EXPECTED_ROM_SIZE));
@@ -22,8 +23,12 @@ int main(void) {
     config.visual_bank = 0xC0u;
     config.visual_block_base = 0x3000u;
     config.block_count = 2u;
-    for (i = 0u; i < 16u; ++i) put16(bytes, config.map_snes + (uint32_t)i * 2u, 1u);
-    for (i = 0u; i < 16u; ++i) put16(bytes, 0xC03020u + (uint32_t)i * 2u, (uint16_t)i);
+    for (row = 0u; row < 16u; ++row) {
+        put16(bytes, config.map_snes + (uint32_t)(row * 64u * 2u), 1u);
+    }
+    for (i = 0u; i < 16u; ++i) {
+        put16(bytes, 0xC03020u + (uint32_t)i * 2u, (uint16_t)i);
+    }
     assert(dk1_level_map_cell(&rom, &config, 0u, 0u, &cell));
     assert(cell == 1u);
     assert(dk1_level_map_expand_tiles(&rom, &config, 0u, 1u, tiles, 4u, 64u));
