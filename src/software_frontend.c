@@ -22,6 +22,7 @@ bool dk1_software_frontend_init(const Dk1SceneMemory *scene,
                                 uint16_t width, uint16_t height,
                                 Dk1SoftwareFrontend *frontend) {
     uint8_t obsel = 0u;
+    Dk1DynamicStreamUpdate update;
     if (scene == NULL || frontend == NULL || width == 0u || height == 0u) return false;
     memset(frontend, 0, sizeof(*frontend));
     frontend->runtime.view.width = width;
@@ -34,15 +35,20 @@ bool dk1_software_frontend_init(const Dk1SceneMemory *scene,
     frontend->obsel = obsel;
     dk1_oam_init(&frontend->oam);
     update_marker(frontend);
-    return dk1_scene_view_clamp(scene, &frontend->runtime.view);
+    if (!dk1_scene_view_clamp(scene, &frontend->runtime.view)) return false;
+    return dk1_dynamic_stream_update(frontend->runtime.view, 128u,
+                                     &frontend->stream, &update);
 }
 
 bool dk1_software_frontend_step(const Dk1SceneMemory *scene, uint16_t held,
                                 Dk1SoftwareFrontend *frontend) {
     int32_t x, y;
+    Dk1DynamicStreamUpdate update;
     if (scene == NULL || frontend == NULL) return false;
     dk1_host_input_update(&frontend->input, held);
     if (!dk1_scene_runtime_step(scene, held, &frontend->runtime)) return false;
+    if (!dk1_dynamic_stream_update(frontend->runtime.view, 128u,
+                                   &frontend->stream, &update)) return false;
     x = frontend->marker_x;
     y = frontend->marker_y;
     if (held & DK1_HOST_BUTTON_L) x -= 2;
@@ -107,6 +113,7 @@ uint64_t dk1_software_frontend_signature(const Dk1SoftwareFrontend *frontend) {
     if (frontend == NULL) return 0;
     hash = dk1_fnv1a64(&frontend->runtime, sizeof(frontend->runtime), hash);
     hash = dk1_fnv1a64(&frontend->input, sizeof(frontend->input), hash);
+    hash = dk1_fnv1a64(&frontend->stream, sizeof(frontend->stream), hash);
     hash = dk1_fnv1a64(&frontend->marker_x, sizeof(frontend->marker_x), hash);
     hash = dk1_fnv1a64(&frontend->marker_y, sizeof(frontend->marker_y), hash);
     return dk1_fnv1a64(&frontend->oam, sizeof(frontend->oam), hash);
