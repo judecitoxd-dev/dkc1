@@ -55,6 +55,17 @@ Confirmed scheduler and boot-state behavior:
 - `$81:D931` and `$BE:812E` dispatch the address in `$1341,X` using the low byte of `$130D,X` as the bank.
 - `$BE:8197` is the confirmed script operation that writes the callback address and bank.
 
+## Object frame behavior confirmed
+
+- `$BF:815E-$BF:8175` visits every active secondary slot before primary selection.
+- `$BF:8000-$BF:80F4` selects the primary update policy from `$1929`.
+- A negative `$1929` increments toward zero and skips only the primary/post-update portion.
+- The restricted path preserves special cases for type ids `$17`, `$26`, and `$31`.
+- Type `$26` is skipped when its `$1029` state is `0` or `5`.
+- The focus path updates the offset in `$1923` plus every type `$45`.
+- The special path excludes the focus object and tests type attribute bit `$0080`.
+- `$0535` decrements from `2` to `1` after a completed primary pass.
+
 ## Camera behavior confirmed
 
 - `$088B` is camera X and `$0895` is camera Y.
@@ -63,5 +74,13 @@ Confirmed scheduler and boot-state behavior:
 - `$80:9C9D-$80:9CDD` clamps X to those limits and normally clamps Y to `0..$0200`.
 - Mode `$0009` bypasses the upper Y clamp.
 - `$0889/$0897` are auxiliary camera values cleared whenever the corresponding axis is clamped.
+
+## Scroll behavior confirmed
+
+`$80:8973-$80:89B3` writes one level scroll profile:
+
+- BG1 X/Y equals camera `$088B/$0895`.
+- BG2 X/Y equals camera divided by two.
+- BG3 vertical scroll is zero.
 
 Addresses and behavior are recorded; no original ROM or asset bytes are committed.
