@@ -1,14 +1,6 @@
 #include <assert.h>
 #include <stddef.h>
 #include "dk1/level_profile_map.h"
-#include "dk1/level_dispatch.h"
-
-bool dk1_level_dispatch_get(uint16_t level_id, Dk1LevelDispatchEntry *entry) {
-    if (entry == NULL || level_id >= 230u) return false;
-    entry->bank_b9_callback_a = level_id == 0u ? 0x8590u :
-        (level_id == 10u ? 0x890Fu : (level_id == 229u ? 0x8E68u : 0x8590u));
-    return true;
-}
 
 int main(void) {
     Dk1LevelProfileMapEntry entry = {0};
