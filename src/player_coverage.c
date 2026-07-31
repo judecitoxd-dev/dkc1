@@ -2,12 +2,14 @@
 #include "dk1/player_dispatch.h"
 #include "dk1/player_advanced_runtime.h"
 #include "dk1/player_extended_runtime.h"
+#include "dk1/player_late_runtime.h"
 #include "dk1/player_state_runtime.h"
 
 Dk1PlayerTranslationLevel dk1_player_state_translation_level(uint16_t state) {
     if (dk1_player_state_compact_is_translated(state) ||
         dk1_player_state_extended_is_translated(state) ||
-        dk1_player_state_advanced_is_translated(state))
+        dk1_player_state_advanced_is_translated(state) ||
+        dk1_player_state_late_is_translated(state))
         return DK1_PLAYER_STATE_LOCAL_SEMANTICS;
     if (state < 2u || state == 20u)
         return DK1_PLAYER_STATE_PLAN_ONLY;
