@@ -1,0 +1,26 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include "dk1/frame_replay.h"
+#include "dk1/rom_image.h"
+#include "dk1/save_state.h"
+#include "dk1/scene_memory.h"
+#include "dk1/scene_signature.h"
+#include "dk1/software_frontend.h"
+
+int main(int argc, char **argv) {
+    Dk1OwnedRom owned = {0}; Dk1RomImage rom = {0}; Dk1RomIdentity identity;
+    Dk1SceneMemory *scene = NULL; Dk1SoftwareFrontend frontend; Dk1Rgba8 *pixels = NULL;
+    Dk1RgbaSurface surface; Dk1SaveStateInfo save; unsigned long level, frames, i; int result=1;
+    if(argc!=5){fprintf(stderr,"usage: %s ROM LEVEL FRAMES OUTPUT.ppm\n",argv[0]);return 2;}
+    level=strtoul(argv[2],NULL,0);frames=strtoul(argv[3],NULL,0);
+    if(level>=DK1_SCENE_LEVEL_COUNT||frames>100000u)return 2;
+    if(!dk1_rom_load_file(argv[1],&owned,&rom)||!dk1_rom_identity(&rom,&identity)||!dk1_rom_identity_is_supported_rev2(&identity))goto cleanup;
+    scene=(Dk1SceneMemory*)malloc(sizeof(*scene));pixels=(Dk1Rgba8*)calloc(384u*224u,sizeof(*pixels));
+    if(scene==NULL||pixels==NULL||!dk1_scene_memory_load(&rom,(uint16_t)level,false,false,scene)||!dk1_software_frontend_init(scene,384u,224u,&frontend))goto cleanup;
+    for(i=0;i<frames;i++){uint16_t held=i<frames/2u?DK1_HOST_BUTTON_RIGHT:(DK1_HOST_BUTTON_DOWN|DK1_HOST_BUTTON_R);if(!dk1_software_frontend_step(scene,held,&frontend))goto cleanup;}
+    surface=(Dk1RgbaSurface){pixels,384u,224u,384u};if(!dk1_software_frontend_render(&rom,scene,&frontend,surface)||!dk1_surface_write_ppm(argv[4],surface))goto cleanup;
+    save.level_id=(uint16_t)level;save.flags=0u;save.scene_signature=dk1_scene_memory_signature(scene);save.runtime=frontend.runtime;
+    printf("level=%lu frames=%lu camera=%u,%u frontend=%016llX scene=%016llX save-ready=%s\n",level,frames,frontend.runtime.view.camera_x,frontend.runtime.view.camera_y,(unsigned long long)dk1_software_frontend_signature(&frontend),(unsigned long long)save.scene_signature,dk1_save_state_encode(&save,(uint8_t[DK1_SAVE_STATE_BYTES]){0})?"yes":"no");
+    result=0;
+cleanup:free(pixels);free(scene);dk1_rom_free(&owned);return result;
+}

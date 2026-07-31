@@ -1,30 +1,30 @@
 # dk1 — clean-room PC reimplementation workspace
 
-This repository is a clean-room native PC reimplementation workspace for the SNES game identified by the user-provided cartridge dump.
+This repository is a clean-room native PC reimplementation of the SNES game identified by the user-provided cartridge dump. It is built from disassembly and behavioral analysis, so it is decompilation-like engineering, but it is **not** Rare's original source code recovered line for line.
 
 ## Current status
 
-**Overall engineering progress: 40%**
+**Overall engineering progress: 50%**
 
-The percentage measures completed, tested reimplementation work. It is not the percentage of ROM bytes copied into C, and it is not the percentage of gameplay that is currently playable. ROM bytes, original graphics, music, level geometry, and other copyrighted assets are deliberately not committed.
+The percentage measures completed and tested engineering systems. It is not the percentage of gameplay currently playable, and it is not based on how many ROM bytes were converted. ROM bytes, original graphics, music, level geometry, and other copyrighted assets are deliberately not committed.
 
 | Area | Progress |
 |---|---:|
 | Cartridge identity / HiROM mapping | 100% |
 | Reset-vector and boot-entry analysis | 80% |
-| Routine discovery and symbol map | 62% |
-| Semantic portable C | 55% |
-| PC rendering / widescreen | 68% |
-| Input / saves / menus / compatibility | 30% |
+| Routine discovery and symbol map | 65% |
+| Semantic portable C | 65% |
+| PC rendering / widescreen | 82% |
+| Input / saves / menus / compatibility | 60% |
 | Audio | 0% |
 
-The runtime now reconstructs a scene from any of the 230 level/location ids: it selects one of 31 initializer recipes, applies the correct PPU preset, terrain profile, VRAM package sequence, CGRAM uploads, and exact camera bounds, then exposes VRAM/CGRAM/PPU state to 2/4/8bpp host renderers. It also preserves the corrected visual-streaming map order used by `$81:8CEF` and treats map cell zero as the blank sentinel.
+The runtime reconstructs all 230 level/location scenes from the local ROM and now adds a host-facing frame layer: SNES OAM decoding/encoding, 128-sprite OBJ rendering, all OBSEL size pairs, tile-table selection, sprite animation timelines, mode-1 priority ranking, two-window boolean masks, BGR555 add/subtract/half color math, display brightness, keyboard mapping, deterministic input replay, checksummed portable save states, and a software frontend that combines reconstructed backgrounds with an OAM layer.
 
-Local whole-cartridge validation reconstructed **230/230 scenes with zero failures** and produced the deterministic signature `6F88519C029414AB`. All 31 unique scene recipes produced previews: 23 through direct streaming-map composition and eight through reconstructed VRAM fallback.
+Whole-cartridge frontend validation initialized, advanced, and rendered **230/230 scenes with zero failures**. Aggregate frontend signature for the supported ROM: `2BA007DBD5D4A725`.
 
-This is a major functional data-path milestone, but it is still **not a playable or pixel-perfect port**. The compositor does not yet reproduce every SNES priority, window, color-math, animation, sprite, and initializer side effect.
+An optional X11 executable provides a real Linux PC window and keyboard input when X11 development libraries are available. This is a functional host preview path, but it is still **not a complete playable or pixel-perfect port**: the visible marker is diagnostic, not the translated original Donkey Kong actor.
 
-See [`docs/PROGRESS.md`](docs/PROGRESS.md), [`docs/SCENE_RECONSTRUCTION.md`](docs/SCENE_RECONSTRUCTION.md), [`docs/FRAME_RUNTIME.md`](docs/FRAME_RUNTIME.md), [`docs/LEVEL_MAP_PIPELINE.md`](docs/LEVEL_MAP_PIPELINE.md), and [`docs/VRAM_PACKAGE_PIPELINE.md`](docs/VRAM_PACKAGE_PIPELINE.md).
+See [`docs/PROGRESS.md`](docs/PROGRESS.md), [`docs/FRONTEND_RUNTIME.md`](docs/FRONTEND_RUNTIME.md), [`docs/SCENE_RECONSTRUCTION.md`](docs/SCENE_RECONSTRUCTION.md), [`docs/FRAME_RUNTIME.md`](docs/FRAME_RUNTIME.md), and [`docs/VRAM_PACKAGE_PIPELINE.md`](docs/VRAM_PACKAGE_PIPELINE.md).
 
 ## ROM required locally
 
@@ -40,55 +40,61 @@ Expected SHA-256:
 628147468c3539283197f58f03b94df49758a332831857481ea9cc31645f0527
 ```
 
-## Build
+## Build and test
 
 ```bash
 cmake -S . -B build
 cmake --build build
 ctest --test-dir build --output-on-failure
-./build/dk1_pc
 ```
 
-There are currently **46 automated tests configured**: 45 C runtime tests and one Python control-flow test. The 13 tests introduced in the 26-to-40% stage pass locally with warnings treated as errors.
+There are now **53 automated tests configured**: 52 C tests and one Python control-flow test. The seven tests introduced in the 40-to-50% stage pass locally with warnings treated as errors.
 
-## Scene preview
+## Interactive Linux/X11 preview
+
+When CMake finds X11:
 
 ```bash
-./build/dk1_scene_probe \
+./build/dk1_x11 \
   "rom/Donkey Kong Country (USA) (Rev 2).sfc" \
-  0 0 128 384 224 scene0.ppm
+  0 384 224
 ```
 
-Arguments after the ROM are level id, camera X, camera Y, viewport width, viewport height, and output path. The viewport can be wider than the SNES display while the original camera bounds remain active.
+Controls: arrows or WASD move the camera; Q/E and U/Z move the diagnostic OAM marker; Escape exits.
 
-## Validate every scene
+## Headless frontend preview
 
 ```bash
-./build/dk1_scene_validate \
+./build/dk1_frontend_probe \
+  "rom/Donkey Kong Country (USA) (Rev 2).sfc" \
+  0 90 frontend0.ppm
+```
+
+## Validate every frontend scene
+
+```bash
+./build/dk1_frontend_validate \
   "rom/Donkey Kong Country (USA) (Rev 2).sfc"
 ```
 
-Expected result for the supported dump:
+Expected result:
 
 ```text
-scenes=230 failed=0 signature=6F88519C029414AB
+frontends=230 failed=0 signature=2BA007DBD5D4A725
 ```
 
-## Other probes
+## Will the final result be functional?
 
-```bash
-./build/dk1_level_probe \
-  "rom/Donkey Kong Country (USA) (Rev 2).sfc" \
-  0 8 level0-diagnostic.ppm
+That is the goal, and the architecture is suitable for a functional native port. It cannot be guaranteed in advance: commercial-game clean-room reconstruction can still uncover unknown formats, timing dependencies, and callback behavior. The project will not be called complete until gameplay works and is validated against the SNES version.
 
-./build/dk1_vram_probe \
-  "rom/Donkey Kong Country (USA) (Rev 2).sfc" \
-  1 0xB9A1DC 0x3000 0 256 package1.ppm
-```
+## What still blocks gameplay
 
-## What remains before gameplay
-
-A playable original-compatible build still needs translated player and enemy callbacks, exact movement and neighboring-cell collision side effects, sprite/OAM animation, dynamic level streaming, complete priority/window/color-math behavior, a real PC window and controller backend, audio, saves, menus, and frame-trace comparison against the SNES version.
+- Original player and enemy callbacks, physics, animation data, and object-to-OAM construction.
+- Exact neighboring-cell/material collision side effects.
+- Dynamic level streaming during gameplay.
+- Exact per-pixel main/subscreen behavior and every initializer side effect.
+- Audio/SPC700, music, sound effects, menus, SRAM save compatibility, and game progression.
+- Emulator-reference frame traces and broad gameplay testing.
 
 ## Project rules
 

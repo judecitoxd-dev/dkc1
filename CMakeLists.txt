@@ -13,8 +13,10 @@ add_library(dk1_core
     src/camera.c
     src/cgram_image.c
     src/dkc_decompress.c
+    src/frame_replay.c
     src/frame_runtime.c
     src/host_callback.c
+    src/host_input.c
     src/input.c
     src/level_camera_bounds.c
     src/level_diagnostic.c
@@ -24,11 +26,14 @@ add_library(dk1_core
     src/level_profile_map.c
     src/level_terrain_config.c
     src/nmi_dispatch.c
+    src/oam_animation.c
+    src/oam_image.c
     src/object_executor.c
     src/object_runtime.c
     src/object_scheduler.c
     src/ppu_bg_renderer.c
     src/ppu_compositor.c
+    src/ppu_effects.c
     src/ppu_layout.c
     src/ppu_preset.c
     src/ppu_scroll.c
@@ -38,6 +43,7 @@ add_library(dk1_core
     src/rgba_surface.c
     src/rom_image.c
     src/rom_terrain.c
+    src/save_state.c
     src/scene_memory.c
     src/scene_package_plan.c
     src/scene_recipe.c
@@ -45,6 +51,7 @@ add_library(dk1_core
     src/scene_signature.c
     src/scene_view.c
     src/snes_graphics.c
+    src/software_frontend.c
     src/state_sequence.c
     src/terrain.c
     src/tilemap_renderer.c
@@ -77,6 +84,12 @@ target_link_libraries(dk1_scene_probe PRIVATE dk1_core)
 add_executable(dk1_scene_validate src/scene_validate.c)
 target_link_libraries(dk1_scene_validate PRIVATE dk1_core)
 
+add_executable(dk1_frontend_probe src/frontend_probe.c)
+target_link_libraries(dk1_frontend_probe PRIVATE dk1_core)
+
+add_executable(dk1_frontend_validate src/frontend_validate.c)
+target_link_libraries(dk1_frontend_validate PRIVATE dk1_core)
+
 enable_testing()
 
 foreach(test_name IN ITEMS
@@ -88,8 +101,10 @@ foreach(test_name IN ITEMS
     camera
     cgram_image
     dkc_decompress
+    frame_replay
     frame_runtime
     host_callback
+    host_input
     input
     level_camera_bounds
     level_diagnostic
@@ -100,11 +115,14 @@ foreach(test_name IN ITEMS
     level_profile_map
     level_terrain_config
     nmi_dispatch
+    oam_animation
+    oam_image
     object_executor
     object_runtime
     object_scheduler
     ppu_bg_renderer
     ppu_compositor
+    ppu_effects
     ppu_layout
     ppu_preset
     ppu_scroll
@@ -113,6 +131,7 @@ foreach(test_name IN ITEMS
     rgba_surface
     rom_image
     rom_terrain
+    save_state
     scene_package_plan
     scene_recipe
     scene_runtime
@@ -120,6 +139,7 @@ foreach(test_name IN ITEMS
     scene_view
     snes_graphics
     snes_graphics_depth
+    software_frontend
     state_sequence
     terrain
     tilemap_renderer
@@ -137,4 +157,11 @@ if(Python3_Interpreter_FOUND)
         NAME cfg65816
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_cfg65816.py
     )
+endif()
+
+find_package(X11)
+if(X11_FOUND)
+    add_executable(dk1_x11 src/x11_frontend.c)
+    target_include_directories(dk1_x11 PRIVATE ${X11_INCLUDE_DIR})
+    target_link_libraries(dk1_x11 PRIVATE dk1_core ${X11_LIBRARIES})
 endif()
