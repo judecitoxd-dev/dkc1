@@ -19,9 +19,14 @@ add_library(dk1_core
     src/object_runtime.c
     src/object_scheduler.c
     src/ppu_scroll.c
+    src/preview_actor.c
     src/render_queue.c
     src/reset_state.c
+    src/rgba_surface.c
+    src/rom_image.c
+    src/snes_graphics.c
     src/state_sequence.c
+    src/terrain.c
     src/tilemap_renderer.c
 )
 target_include_directories(dk1_core PUBLIC include)
@@ -34,6 +39,9 @@ endif()
 
 add_executable(dk1_pc src/main.c)
 target_link_libraries(dk1_pc PRIVATE dk1_core)
+
+add_executable(dk1_asset_probe src/asset_probe.c)
+target_link_libraries(dk1_asset_probe PRIVATE dk1_core)
 
 enable_testing()
 
@@ -52,8 +60,13 @@ foreach(test_name IN ITEMS
     object_runtime
     object_scheduler
     ppu_scroll
+    preview_actor
     render_queue
+    rgba_surface
+    rom_image
+    snes_graphics
     state_sequence
+    terrain
     tilemap_renderer
 )
     add_executable(test_${test_name} tests/test_${test_name}.c)

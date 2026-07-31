@@ -4,7 +4,7 @@ This repository is an early clean-room native PC reimplementation workspace for 
 
 ## Current status
 
-**Overall engineering progress: 11%**
+**Overall engineering progress: 16%**
 
 The percentage measures completed, tested reimplementation work. It is not the percentage of ROM bytes copied into C. ROM bytes, original graphics, music, level geometry, and other copyrighted assets are deliberately not committed.
 
@@ -12,17 +12,17 @@ The percentage measures completed, tested reimplementation work. It is not the p
 |---|---:|
 | Cartridge identity / HiROM mapping | 100% |
 | Reset-vector and boot-entry analysis | 80% |
-| Routine discovery and symbol map | 42% |
-| Semantic portable C | 18% |
-| PC rendering / widescreen | 15% |
-| Input / saves / menus / compatibility | 10% |
+| Routine discovery and symbol map | 46% |
+| Semantic portable C | 27% |
+| PC rendering / widescreen | 26% |
+| Input / saves / menus / compatibility | 18% |
 | Audio | 0% |
 
-Current verified analysis covers **725 routine entries**, **21,143 unique instruction addresses**, and **423 confirmed indirect edges**. The C runtime now models reset, memory clearing, early PPU setup, NMI scheduling, state sequencing, all 230 level dispatch records, both object pools, 122 object types, the original object selection policy, camera clamping, three confirmed parallax profiles, SNES controller state, host callback registration, translated object invocation, a camera-relative render queue, wrapped 8x8 tilemap drawing, and an integrated native frame step.
+Current verified analysis covers **725 routine entries**, **21,143 unique instruction addresses**, and **423 confirmed indirect edges**. The C runtime models reset, PPU setup, NMI scheduling, state sequencing, 230 level dispatch records, both object pools, 122 object types, controller input, host callbacks, object execution, camera and parallax, render queues, wrapped tilemaps, exact Rev. 2 ROM validation, HiROM reads, 4bpp graphics and BGR555 palette decoding, the collision-cell format used by `$81:8000`, all 63 valid slope transforms selected by `$81:84C9`, indexed-to-RGBA presentation, and a deterministic validation actor.
 
-The executable now runs a deterministic host frame through input, object scheduling, a translated C callback, PPU scroll calculation, and visible-object generation. It still does **not** load an original level or provide complete gameplay.
+The executable frame path is functional, and `dk1_asset_probe` can read the user's local ROM and create a PPM preview from user-supplied tile and palette addresses. It still does **not** load a complete original level or provide original-compatible gameplay.
 
-See [`docs/PROGRESS.md`](docs/PROGRESS.md), [`docs/FRAME_RUNTIME.md`](docs/FRAME_RUNTIME.md), [`docs/OBJECT_CAMERA.md`](docs/OBJECT_CAMERA.md), and [`docs/OBJECT_SCHEDULER.md`](docs/OBJECT_SCHEDULER.md).
+See [`docs/PROGRESS.md`](docs/PROGRESS.md), [`docs/FRAME_RUNTIME.md`](docs/FRAME_RUNTIME.md), [`docs/ROM_ASSETS_TERRAIN.md`](docs/ROM_ASSETS_TERRAIN.md), [`docs/OBJECT_CAMERA.md`](docs/OBJECT_CAMERA.md), and [`docs/OBJECT_SCHEDULER.md`](docs/OBJECT_SCHEDULER.md).
 
 ## ROM required locally
 
@@ -60,11 +60,25 @@ ctest --test-dir build --output-on-failure
 ./build/dk1_pc
 ```
 
-There are currently **18 automated tests**: 17 C runtime tests and one Python control-flow test.
+There are currently **23 automated tests**: 22 C runtime tests and one Python control-flow test.
+
+## Local asset preview
+
+The probe decodes standard uncompressed SNES 4bpp tiles and BGR555 colors at addresses supplied by the user:
+
+```bash
+./build/dk1_asset_probe \
+  "rom/Donkey Kong Country (USA) (Rev 2).sfc" \
+  C00000 C00400 preview.ppm
+```
+
+The addresses are hexadecimal 24-bit SNES addresses. Compressed game resources still require their individual decompression formats to be translated.
 
 ## Will this become functional?
 
-The architecture now supports a functional native port: a frame can read input, select and invoke translated object callbacks, calculate layer scroll, and generate host rendering work. Completion is still not automatic or guaranteed. A playable original-compatible build needs collision and terrain queries, translated gameplay callbacks, real level/tilemap and asset decoding, sprite animation, audio, saves, menus, and trace comparison against the SNES version.
+The architecture supports a functional native port: it can read input, execute translated callbacks, query reconstructed collision cells, calculate layer scroll, decode local ROM graphics, and generate host rendering work. Completion is still not automatic or guaranteed. A playable original-compatible build needs level-table decoding, compressed asset formats, shared player/object collision behavior, translated actor callbacks, sprite animation, audio, saves, menus, and frame-trace comparison against the SNES version.
+
+The preview actor exists only to validate terrain and input integration. It is **not** presented as the original Donkey Kong physics.
 
 ## Project rules
 

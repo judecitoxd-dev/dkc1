@@ -1,20 +1,20 @@
 # Progress accounting
 
-## Current total: 11%
+## Current total: 16%
 
 The total is milestone-weighted so it cannot be inflated by generating thousands of meaningless C stubs.
 
 | Milestone | Weight | Done | Contribution |
 |---|---:|---:|---:|
 | Reproducible ROM identification and mapping | 5% | 100% | 5.00% |
-| Function discovery, control-flow graph, symbols | 15% | 42% | 6.30% |
-| Portable gameplay/system C | 45% | 18% | 8.10% |
-| Graphics, camera, tilemaps, widescreen | 15% | 15% | 2.25% |
+| Function discovery, control-flow graph, symbols | 15% | 46% | 6.90% |
+| Portable gameplay/system C | 45% | 27% | 12.15% |
+| Graphics, camera, tilemaps, widescreen | 15% | 26% | 3.90% |
 | Audio | 8% | 0% | 0.00% |
-| Input, saves, menus, compatibility | 7% | 10% | 0.70% |
-| Validation and packaging | 5% | 10% | 0.50% |
+| Input, saves, menus, compatibility | 7% | 18% | 1.26% |
+| Validation and packaging | 5% | 16% | 0.80% |
 
-Weighted pipeline foundation: **22.85%**. The public headline is a conservative **11%** because no original-compatible playable level is loaded yet.
+Weighted pipeline foundation: **30.01%**. The public headline remains a conservative **16%** because no complete original-compatible level is playable yet.
 
 ## What counts as converted
 
@@ -22,41 +22,43 @@ A routine or host system counts only when its inputs, outputs, side effects, por
 
 ## Completed in this five-point stage
 
-### 7% — controller input
+### 12% — exact local ROM access
 
-- Translated `$00:C180-$00:C1AF` held/new-press calculation.
-- Translated `$00:C1B2-$00:C20A` active-controller selection and shared-input merging.
-- Added SNES button masks and deterministic tests.
+- Added file loading and owned-buffer cleanup.
+- Added checked HiROM conversion for mirrored upper-half and full-bank mappings.
+- Added checked 8/16/24-bit reads and bounded copies.
+- Added exact cartridge-header validation for the supported USA Rev. 2 dump, including checksum/complement validation.
 
-### 8% — host callback registry
+### 13% — SNES graphics and palette decoding
 
-- Added a 24-bit source-address to C-function registry.
-- Supports replacement, lookup, execution, missing-callback accounting, and failure accounting.
-- Keeps every translated callback traceable to its original SNES address.
+- Added standard 32-byte planar 4bpp tile decoding.
+- Added multi-tile decoding and direct decoding from a local HiROM address.
+- Added SNES 15-bit color conversion and palette decoding.
+- No original graphics or palettes are committed.
 
-### 9% — object execution
+### 14% — reconstructed terrain-cell format
 
-- Connected the translated `$BF:8000` object scheduler to host callbacks.
-- Added portable object positions, velocities, flags, frame numbers, and per-slot invocation contexts.
-- Separately counts executed, untranslated, and failed callbacks.
+- Identified `$81:8000` as the object terrain-height entry and `$81:800D-$81:8167` as its main cell query.
+- Reconstructed the column-major, vertically reversed 16-row map layout.
+- Reconstructed 32-pixel block flipping, 16-pixel half selection, descriptor flipping, shape ids, and material flags.
+- Translated all 63 valid height transforms selected by the table at `$81:84C9`, including the curve table at `$81:86E5`.
 
-### 10% — host rendering foundation
+### 15% — host RGBA and asset probe
 
-- Added camera-relative object projection and viewport culling.
-- Added stable ordering from the confirmed object priority field.
-- Added a wrapped 8x8 indexed tilemap renderer that supports viewports wider than the SNES display without embedding original assets.
-- Expanded PPU scroll support to three confirmed profiles from `$80:8973`, `$80:8CA0`, and `$80:8DF0`.
+- Added indexed-to-RGBA conversion, clipped rectangle drawing, and binary PPM output.
+- Added `dk1_asset_probe`, which validates the local ROM and renders 16 tiles with a user-selected palette.
+- Verified the complete ROM-to-PPM route locally without committing the generated image.
 
-### 11% — integrated native frame
+### 16% — collision/input validation scene
 
-- One host frame now updates input, selects a controller, runs original object scheduling, invokes translated callbacks, computes PPU scroll, and builds the visible render queue.
-- The diagnostic executable runs this path with a translated C callback.
-- Expanded automated validation from 12 to 18 tests.
+- Added a small host-only actor used to exercise directional input, gravity, jump input, terrain floor lookup, landing, and widescreen-compatible presentation.
+- The actor is explicitly a validation harness, not a claim that original player physics are translated.
+- Expanded automated validation from 18 to 23 tests.
 
 ## Next measurable targets
 
-- Translate shared collision and terrain-query routines used by player and object callbacks.
-- Decode level tilemap layouts from the user's local ROM at runtime without committing assets.
-- Translate enough object callbacks to animate a controllable actor.
-- Add a real PC window/input backend and indexed-to-RGBA presentation.
-- Validate frame traces against the SNES build before calling the first scene playable.
+- Resolve the level-specific pointers loaded by `$81:8C67-$81:8CAF` and bind an actual level collision map from the local ROM.
+- Translate the full neighboring-cell behavior and material side effects of `$81:800D`.
+- Identify and translate the compression formats used by the initial VRAM upload sources.
+- Translate a common actor callback and its real movement/collision fields.
+- Add a real PC window/input backend and display the first decoded original background layer.
