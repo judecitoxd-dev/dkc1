@@ -1,75 +1,78 @@
 # Progress accounting
 
-## Current total: 77%
+## Current total: 84%
 
-Seventy-seven percent refers to completed engineering infrastructure and translated systems, not seventy-seven percent playable gameplay.
+Eighty-four percent refers to completed engineering infrastructure and translated systems, not eighty-four percent playable gameplay.
 
 | Milestone | Weight | Done | Contribution |
 |---|---:|---:|---:|
 | Reproducible ROM identification and mapping | 5% | 100% | 5.00% |
-| Function discovery, control-flow graph, symbols | 15% | 80% | 12.00% |
-| Portable gameplay/system C | 45% | 93% | 41.85% |
-| Graphics, camera, tilemaps, widescreen | 15% | 90% | 13.50% |
+| Function discovery, control-flow graph, symbols | 15% | 84% | 12.60% |
+| Portable gameplay/system C | 45% | 97% | 43.65% |
+| Graphics, camera, tilemaps, widescreen | 15% | 94% | 14.10% |
 | Audio | 8% | 48% | 3.84% |
-| Input, saves, menus, compatibility | 7% | 65% | 4.55% |
-| Validation and packaging | 5% | 80% | 4.00% |
+| Input, saves, menus, compatibility | 7% | 66% | 4.62% |
+| Validation and packaging | 5% | 85% | 4.25% |
 
-Weighted pipeline foundation: **84.74%**. The public headline remains **77%** because no original-compatible level is playable from start to finish.
+Weighted pipeline foundation: **88.06%**. The public headline remains **84%** because no original-compatible level is playable from start to finish.
 
-## Completed in the 70-to-77% stage
+## Completed in the 77-to-84% stage
 
-### 71% — player states 35–39
+### 78% — player states 50–56
 
-- Added exact local semantics for fixed-point scripted movement, linked-object frame clearing and the type-$30/$31 linked-player wrappers.
-- State 35 reproduces velocity/acceleration integration, arithmetic division by 32, source-relative positioning, clamped vertical term and subpixel branch updates.
-- States 37–39 retain every unresolved helper as an explicit required-call flag.
+- Added local semantics for paired-player frame mirroring, position/facing synchronization, fallback animation, shared scripted swaps and the mode `$02`/`$0C` transition wrappers.
+- Preserves the frame-range conversion between `$0714-$072B` and `$0DC0-$0DD7`.
+- Untranslated helpers remain explicit required-call flags.
 
-### 72% — player states 40–44
+### 79% — player states 57–63
 
-- Added mode-dependent timers, input routing, partner branches, initialization/reset state and camera-relative exit behavior.
-- Translated the local gravity helper at `$BF:97C8`, including its `$145D` countdown behavior and `-$0300` vertical clamp.
+- Added timer/effect states, launch and camera-exit transitions, hidden-position toggles, reset wrappers and the guarded input state.
+- Preserves transitions to `$3D`, `$3E`, `$42` and `$43` and writes to `$051A`, `$0579`, `$0E89`, `$0EF1`, `$0F25`, `$123D`, `$1375`, `$1929` and paired-player fields.
 
-### 73% — player states 45–49
+### 80% — player states 64–70
 
-- Added the scripted vertical launch state, collision/input wrapper, query-driven transition to state `$4C` and off-camera paired-player reset path.
-- Preserves writes to `$0579`, `$0C69`, `$1029`, `$11D5`, `$123D`, `$1631`, `$1929`, `$051A` and player/partner velocity fields.
+- Added forward/reverse animation wrappers, timed effect termination, facing synchronization and the reset flow beginning at `$BF:9D5F`.
+- State 68 reproduces mode-dependent `$2000/$3000` flags, linked-object propagation, both-player vertical launch and the state `$32` partner path.
+- State 70 preserves the `$1811=($1813-2)&$3F` update and transition to state `$28`.
 
-### 74% — reverse animation playback
+### 81% — original frame-pointer table
 
-- Translated the negative-speed path beginning at `$BE:8414`.
-- Walks records backwards, follows reverse pointer records and preserves the original accumulator and script-pointer movement.
+- Translated the four-byte entries indexed directly by even frame ids at `$BB:CC9C`.
+- Each entry exposes the original bank/address descriptor pointer without committing extracted frame data.
+- Frame `$0330` resolves to `$D7:620A`.
 
-### 75% — linked-object animation commands
+### 82% — frame-piece parsing and OAM output
 
-- Implemented commands `$85-$8D` from `$BE:81E2-$BE:83CA`.
-- Supports primary `$0512`, secondary `$16F5` and direct `$1375` links.
-- Applies paired frames, `$13E9/$145D` motion values and linked animation-speed clearing exactly where the original handlers do.
-- Missing required links return an explicit `LINK_REQUIRED` result; command `$8D` remains a no-op when its direct link is zero.
+- Translated the descriptor header and interleaved X/Y piece stream consumed by `$BB:AADF`.
+- Large pieces use the original two-tile increment and row-wrap rule; small/auxiliary groups use their header tile offsets.
+- Frame `$0330` contains two large and ten small pieces.
+- Supported-ROM frame-layout signature: `9A2E475D9D1AB40F`.
+- Parsed pieces can be emitted into the portable OAM image using the renderer's already transformed base coordinates.
 
-### 76% — audio source catalog
+### 83% — exact NMI DMA record model
 
-- Parsed the exact 27 three-byte source pointers at `$8A:B15E-$8A:B1AE`.
-- Supported-ROM catalog signature: `D66EA2B33D4342BD`.
+- Translated the eight-byte queue record beginning at `$170F`: transfer length, VRAM word destination, source address and active/source-bank word.
+- Bit 15 marks a record active and the low byte supplies the DMA source bank.
+- Processing stops at the first inactive record exactly as in `$81:8CB0`.
 
-### 77% — SPC upload-block loading
+### 84% — NMI mode-1 VRAM transfer
 
-- Translated the four-byte block header and byte transfer performed by `$8A:B4EB-$8A:B538`.
-- Every block exposes source, payload address, length and SPC target.
-- All 27 blocks target `$12A0`, load successfully into a 64 KiB SPC RAM image and contain 65,195 payload bytes in total.
-- Supported-ROM payload signature: `6CC614324FAED0E8`.
+- Reproduces channel-0 `$4300=$1801` linear VRAM writes through `$2118/$2119`.
+- Clears the active/source-bank word after each completed record.
+- Supports VRAM wrapping and deterministic byte/record statistics.
+- Exact cycle timing and the producer-side scheduling of every gameplay update remain pending.
 
 ## Validation
 
-- Added tests for player states 35–49 and the complete audio catalog/loader.
-- Expanded the animation test with commands `$85`, `$8A`, `$8D` and reverse playback.
-- Focused local workspace passes 38/38 tests with `-Wall -Wextra -Wpedantic -Werror`.
-- Configured project validation increases from 69 to 71 tests.
-- `dk1_gameplay_validate` reports 45 planned states, 42 local states and zero invalid translated handlers.
+- Added focused tests for states 50–70, frame `$0330` parsing/OAM output and NMI DMA execution.
+- All three new tests pass locally with `-Wall -Wextra -Wpedantic -Werror`.
+- Configured project validation increases from 71 to 74 tests.
+- `dk1_gameplay_validate` reports 66 planned states, 63 local states, zero invalid translated handlers and the frame-layout signature above.
 
 ## Next measurable targets
 
-- Translate player states 50 onward and the shared movement/collision helpers they depend on.
-- Identify the original frame-to-OAM-piece tables and render Donkey Kong instead of the diagnostic marker.
-- Execute one of the 27 loaded SPC programs far enough to process its first command.
-- Connect dynamic tile writes to the exact NMI/DMA queue.
-- Translate one common enemy or barrel behavior through scheduler, collision, animation and OAM.
+- Translate player states 71–86 and the shared helpers they expose.
+- Feed real player object screen bases and tile attributes into the frame OAM builder.
+- Translate the producer that fills `$170F-$17xx` during dynamic map streaming.
+- Execute one loaded SPC700 driver far enough to process its first command.
+- Translate a common enemy or barrel through scheduler, collision, animation and OAM.
