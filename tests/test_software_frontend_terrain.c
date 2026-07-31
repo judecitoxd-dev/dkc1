@@ -1,0 +1,6 @@
+#include <assert.h>
+#include <stdlib.h>
+#include <string.h>
+#include "dk1/level_terrain_config.h"
+#include "dk1/software_frontend.h"
+int main(void){const char*path=getenv("DK1_TEST_ROM");Dk1OwnedRom owned={0};Dk1RomImage rom;Dk1SceneMemory scene;Dk1SoftwareFrontend f;unsigned i;if(!path)path="/mnt/data/Donkey Kong Country (USA) (Rev 2).sfc";assert(dk1_rom_load_file(path,&owned,&rom));memset(&scene,0,sizeof(scene));scene.camera.maximum_x=5120u;assert(dk1_level_terrain_config_read(&rom,0u,&scene.terrain));assert(dk1_software_frontend_init_with_rom(&rom,&scene,96u,64u,&f));assert(f.player_terrain_ready);assert(f.player_vertical_origin==512u);assert(f.player_preview.motion.world_x==48u);assert(f.player_preview.motion.world_y==352);assert(f.runtime.view.camera_y==128u);assert(f.marker_y==32);assert(dk1_software_frontend_step(&scene,DK1_HOST_BUTTON_B,&f));assert(f.player_preview.airborne);assert(f.player_live.state==11u);assert(f.player_live.handler_pc==0xBF8FA7u);assert(f.player_live.required_calls==DK1_PLAYER_CALL_MOVE);for(i=0;i<200u&&f.player_preview.airborne;i++)assert(dk1_software_frontend_step(&scene,0u,&f));assert(!f.player_preview.airborne);assert(f.player_live.state==1u);assert(f.player_preview.motion.world_y>=352&&f.player_preview.motion.world_y<=367);dk1_rom_free(&owned);return 0;}

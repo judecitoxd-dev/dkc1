@@ -14,16 +14,14 @@ static int16_t signed_integer_byte(int16_t velocity) {
     return (int16_t)(int8_t)high;
 }
 
-static void integrate_axis(int16_t velocity, uint16_t *fraction, int16_t *position) {
+static int16_t integrated_delta(int16_t velocity, uint16_t *fraction) {
     uint32_t sum;
-    int32_t next;
     uint16_t fractional_velocity;
-    if (fraction == 0 || position == 0) return;
+    if (fraction == 0) return 0;
     fractional_velocity = (uint16_t)(((uint16_t)velocity & 0x00FFu) << 8u);
     sum = (uint32_t)(*fraction) + fractional_velocity;
     *fraction = (uint16_t)sum;
-    next = (int32_t)(*position) + signed_integer_byte(velocity) + (int32_t)(sum >> 16u);
-    *position = (int16_t)(uint16_t)next;
+    return (int16_t)(signed_integer_byte(velocity) + (int16_t)(sum >> 16u));
 }
 
 void dk1_player_motion_apply_gravity(Dk1PlayerMotion *motion,
@@ -47,12 +45,12 @@ void dk1_player_motion_apply_light_gravity(Dk1PlayerMotion *motion,
 
 void dk1_player_motion_integrate_horizontal(Dk1PlayerMotion *motion) {
     if (motion == 0) return;
-    integrate_axis(motion->velocity_x, &motion->subpixel_x, &motion->world_x);
+    motion->world_x = (uint16_t)(motion->world_x + integrated_delta(motion->velocity_x, &motion->subpixel_x));
 }
 
 void dk1_player_motion_integrate_vertical(Dk1PlayerMotion *motion) {
     if (motion == 0) return;
-    integrate_axis(motion->velocity_y, &motion->subpixel_y, &motion->world_y);
+    motion->world_y = (int16_t)(uint16_t)(motion->world_y + integrated_delta(motion->velocity_y, &motion->subpixel_y));
 }
 
 void dk1_player_motion_integrate(Dk1PlayerMotion *motion) {

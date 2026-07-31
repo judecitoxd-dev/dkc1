@@ -3,12 +3,16 @@
 #include "dk1/apu_boot_image.h"
 #include "dk1/apu_driver_catalog.h"
 #include "dk1/nmi_vram_dma.h"
+#include "dk1/level_terrain_config.h"
 #include "dk1/object_animation_script.h"
 #include "dk1/object_frame_dma.h"
 #include "dk1/object_frame_layout.h"
 #include "dk1/object_screen_oam.h"
 #include "dk1/player_coverage.h"
 #include "dk1/player_motion.h"
+#include "dk1/player_live_runtime.h"
+#include "dk1/player_preview_runtime.h"
+#include "dk1/player_terrain_runtime.h"
 #include "dk1/player_visual_runtime.h"
 #include "dk1/player_dispatch.h"
 #include "dk1/rom_image.h"
@@ -26,6 +30,12 @@ int main(int argc, char **argv) {
     Dk1Spc700DriverTrace driver_trace;
     Dk1Spc700IplProtocol ipl;
     Dk1PlayerMotion motion;
+    Dk1LevelTerrainConfig terrain_config;
+    Dk1PlayerTerrainRuntime terrain_runtime;
+    Dk1PlayerPreviewRuntime terrain_player;
+    Dk1PlayerLiveRuntime live_player;
+    uint16_t terrain_camera_y = 0u;
+    unsigned live_frames = 0u;
     Dk1ObjectAnimationScriptState animation;
     Dk1AnimationScriptResult animation_result;
     Dk1ObjectFrameLayout frame_layout;
@@ -119,6 +129,34 @@ int main(int argc, char **argv) {
         motion.subpixel_x != 0x3000u || motion.subpixel_y != 0x9000u)
         ++invalid;
 
+    if (!dk1_level_terrain_config_read(&rom, 0u, &terrain_config) ||
+        !dk1_player_terrain_init(&terrain_runtime, &rom, terrain_config, 5120u)) {
+        ++invalid;
+    } else {
+        dk1_player_preview_init(&terrain_player, 48u, 192);
+        if (!dk1_player_terrain_place(&terrain_runtime, &terrain_player, 224u,
+                                      &terrain_camera_y)) {
+            ++invalid;
+        } else {
+            dk1_player_live_init(&live_player);
+            dk1_player_live_step(&live_player, &terrain_player, &terrain_runtime,
+                                 DK1_PLAYER_PREVIEW_JUMP,
+                                 DK1_PLAYER_PREVIEW_JUMP);
+            while (terrain_player.airborne && live_frames < 240u) {
+                dk1_player_live_step(&live_player, &terrain_player,
+                                     &terrain_runtime, 0u, 0u);
+                ++live_frames;
+            }
+            dk1_player_live_step(&live_player, &terrain_player,
+                                 &terrain_runtime, 0u, 0u);
+            if (terrain_player.airborne || terrain_player.motion.world_y != 367 ||
+                terrain_runtime.support.floor_y != 351 ||
+                live_player.state != 1u || live_player.handler_pc != 0xBF87FDu ||
+                live_player.local_steps != 16u || live_player.plan_steps != 1u)
+                ++invalid;
+        }
+    }
+
     if (!dk1_spc700_ipl_init(&ipl, driver.ram, sizeof(driver.ram)) ||
         !dk1_spc700_ipl_begin(&ipl, DK1_SPC_IPL_BEGIN, 0x3000u) ||
         !dk1_spc700_ipl_write_byte(&ipl, 0u, 0x11u) ||
@@ -140,7 +178,10 @@ int main(int argc, char **argv) {
            "driver_code=%016llX driver_data=%016llX driver_ram=%016llX "
            "driver_steps=%llu driver_pc=%04X driver_stop=%u driver_vector=%04X "
            "motion_x=%d motion_y=%d motion_vx=%04X motion_vy=%04X "
-           "motion_subx=%04X motion_suby=%04X ipl_bytes=%llu ipl_pc=%04X "
+           "motion_subx=%04X motion_suby=%04X terrain_floor=%d terrain_center=%d "
+           "terrain_attr=%04X terrain_camera=%u live_frames=%u live_dispatch=%llu "
+           "live_local=%llu live_plan=%llu live_state=%u live_handler=%06X "
+           "ipl_bytes=%llu ipl_pc=%04X "
            "apu_sources=%u apu_bytes=%u apu_catalog=%016llX apu_payload=%016llX\n",
            (unsigned)DK1_PLAYER_STATE_COUNT,
            (unsigned)dk1_player_planned_state_count(),
@@ -170,6 +211,16 @@ int main(int argc, char **argv) {
            (unsigned)(uint16_t)motion.velocity_y,
            (unsigned)motion.subpixel_x,
            (unsigned)motion.subpixel_y,
+           (int)terrain_runtime.support.floor_y,
+           (int)terrain_player.motion.world_y,
+           (unsigned)terrain_runtime.last_attributes,
+           (unsigned)terrain_camera_y,
+           live_frames,
+           (unsigned long long)live_player.dispatches,
+           (unsigned long long)live_player.local_steps,
+           (unsigned long long)live_player.plan_steps,
+           (unsigned)live_player.state,
+           (unsigned)live_player.handler_pc,
            (unsigned long long)ipl.bytes_written,
            (unsigned)ipl.pc,
            (unsigned)apu_sources,

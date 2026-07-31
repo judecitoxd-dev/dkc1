@@ -4,7 +4,7 @@ This repository is a clean-room native PC reimplementation of the SNES game iden
 
 ## Current status
 
-**Overall engineering progress: 96%**
+**Overall engineering progress: 97%**
 
 The percentage measures completed and tested engineering systems. It is not the percentage of gameplay currently playable and is not based on ROM bytes converted.
 
@@ -12,48 +12,47 @@ The percentage measures completed and tested engineering systems. It is not the 
 |---|---:|
 | Cartridge identity / HiROM mapping | 100% |
 | Reset-vector and boot-entry analysis | 80% |
-| Routine discovery and symbol map | 94% |
-| Semantic portable C | 100% state coverage |
+| Routine discovery and symbol map | 96% |
+| Semantic portable C | 100% dispatcher coverage + live state bridge |
 | PC rendering / widescreen | 99% infrastructure |
-| Input / saves / menus / compatibility | 85% |
+| Input / saves / menus / compatibility | 88% |
 | Audio loading / driver path | 80% |
 
-Every entry in the original 87-state player dispatcher is now classified: **84 states have executable local C semantics** and states 0, 1 and 20 retain exact call plans. The final five large handlers—states 2–5 and 10—now preserve their local partner-distance checks, synchronized launch/reset behavior, follow velocity, facing requests, timers, animation selection and state transitions. Shared external helpers are still surfaced explicitly and are not counted as completed gameplay.
+Every entry in the original 87-state player dispatcher remains classified: 84 states have executable local C semantics and states 0, 1 and 20 retain exact call plans.
 
-The software frontend no longer has to render only the diagnostic single-tile marker. When a supported ROM is supplied, it builds frame `$0330` through the original frame table, converts its 12 pieces to screen OAM, schedules and executes the authentic 576 bytes of frame graphics DMA into a private VRAM image, then renders that OAM. If a scene uses an incompatible OBJ layout or no ROM is supplied, it safely falls back to the marker.
+The interactive frontend now uses authentic ROM terrain instead of a flat preview landing line whenever a supported ROM is supplied. It reads the scene's terrain profile, the original 32-pixel collision cells, all 64 shape curves and their material/shape flags. The player is placed on the closest original surface, follows slopes through three foot probes and lands on the crossed surface after a jump.
 
-The bounded SPC700 startup trace now implements `DAS A` and the following `BRK`. With initial APUIO0 `$5A`, the driver reaches `$1076`, decimal-adjusts A to `$F4`, pushes the BRK return/PSW and hands control to the IPL vector `$FFC0` after 13 instructions. IPL-ROM execution and DSP synthesis are not included.
+The player world-X field is now represented as an unsigned 16-bit coordinate. This fixes levels whose camera and collision map begin above `$8000`; the wrapped signed screen delta still matches the original 16-bit object renderer.
 
-The shared fixed-point motion helpers at `$BF:AF81`, `$BF:AFB2`, `$BF:AFE4`, `$BF:B012` and the response table used by `$BF:B1D5` are now executable. The host preview uses them for L/R acceleration, fractional movement, B jumping and gravity instead of directly adding screen pixels. Landing still uses a flat preview baseline, not the original level-material collision system.
+The frontend also advances a measurable live dispatcher bridge. Grounded preview frames retain the exact state-1 plan, while jumping enters state 11 at `$BF:8FA7`, executes its `velocity_y -= $70` local semantics with the `-$0600` floor, satisfies its `MOVE` request through the translated 8.8 motion helpers, resolves ROM terrain and returns to state 1 on landing.
 
-A clean-room IPL protocol model now continues beyond the `$FFC0` handoff without embedding Nintendo's IPL bytes. It exposes the `$AA/$BB` ready state, accepts command `$CC`, writes token-acknowledged bytes into SPC RAM and can relaunch the loaded driver at `$05E8`. This is protocol validation, not audio playback.
-
-Current supported-ROM validation targets:
+The authentic visual path remains connected:
 
 ```text
-player_states=87 planned=87 local=84 invalid=0
-translation=3267767EC866CDAD
-animation=0330 frame_pieces=12 frame_layout=9A2E475D9D1AB40F
-screen_oam=12 frame_dma_records=2 frame_dma_bytes=576
-visual_pieces=12 visual_dma=576
-spc_driver_code=D046E1817CE18D5C
-spc_driver_data=4D8B5E57A7B1359A
-spc_driver_ram=856CF336ECC55C5B
-spc_driver_steps=13 spc_driver_pc=FFC0 spc_driver_stop=2 spc_driver_vector=FFC0
-motion_x=100 motion_y=39 motion_vx=0030 motion_vy=FF90
-motion_subx=3000 motion_suby=9000
-ipl_bytes=3 ipl_pc=05E8
+input
+→ state 1 plan / state 11 local handler
+→ fixed-point movement
+→ ROM terrain contacts
+→ world/camera transform
+→ frame $0330
+→ 12 OAM pieces
+→ two NMI DMA records / 576 graphics bytes
+→ PC render
 ```
 
-The existing scene bootstrap validation remains:
+The bounded SPC700 and clean-room IPL work from the previous stage remains: startup reaches `$FFC0`, the public transfer protocol can upload bytes and the loaded driver can be relaunched at `$05E8`. DSP music and effects are not implemented.
+
+Current supported-ROM gameplay validation additionally checks:
 
 ```text
-scenes=230 failed=0 signature=6F88519C029414AB
+terrain_floor=351 terrain_center=367 terrain_attr=0000 terrain_camera=48
+live_frames=15 live_dispatch=17 live_local=16 live_plan=1
+live_state=1 live_handler=BF87FD
 ```
 
-The frontend signature changes because the authentic player visual state is now part of the runtime. It must be regenerated rather than compared with the old diagnostic-marker signature.
+The validator still checks the existing dispatcher signature, frame layout, OAM/DMA, SPC driver image, fixed-point motion and IPL transfer results.
 
-This is still not a complete playable or pixel-perfect port. Complete behavior of the shared movement/collision helpers, live object initialization, enemies, progression, menus and full SPC700/DSP audio remain major blockers.
+This is still not a complete playable or pixel-perfect port. The live bridge currently executes the normal grounded plan and airborne state-11 path; the complete original controller/state transition graph, wall/ceiling/material side effects, actors, progression, menus and full audio remain major blockers.
 
 ## ROM required locally
 
@@ -71,9 +70,9 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-There are now **84 automated tests configured**: 83 C tests and one Python control-flow test. Twelve focused local tests pass with `-Wall -Wextra -Wpedantic -Werror`, including fixed-point motion, preview control, IPL transfer and the authentic frontend/fallback paths.
+There are now **87 automated tests configured**: 86 C tests and one Python control-flow test. Fifteen focused local tests pass with `-Wall -Wextra -Wpedantic -Werror`, including ROM terrain placement, high-X levels, jumping/landing, live dispatcher transitions, authentic visual construction and the clean-room IPL bridge.
 
-## Validate translated gameplay, visual pipeline and SPC handoff
+## Validate translated gameplay, terrain and SPC handoff
 
 ```bash
 ./build/dk1_gameplay_validate \
@@ -90,19 +89,18 @@ When X11 is available:
   0 384 224
 ```
 
-L/R now accelerate the preview through the translated fixed-point motion helpers and B performs a preview jump under translated gravity. The visible object is built from the original frame pieces whenever the ROM/OBJ configuration permits it. The landing plane is still synthetic, so this is not proof that original Donkey Kong terrain physics are complete.
+Q/E or the mapped L/R inputs accelerate the player; Z/B jumps. With the ROM-aware initializer, the player starts on original terrain and the frontend reports the current dispatcher state and terrain attributes.
 
 ## Accuracy boundary
 
-The final state handlers follow confirmed bank-`$BF` instructions and keep unresolved JSR/JSL calls visible in required-call masks. The visual pipeline composes already-confirmed frame layout, screen transform, DMA producer and NMI consumer modules without extracting assets. SPC `DAS`/`BRK` behavior follows a proven emulator implementation and stops at the IPL handoff rather than embedding Nintendo's 64-byte IPL ROM.
+Terrain shape equations and flags follow the existing clean-room translations of `$81:8409` and the level terrain records at `$81:8B94-$81:8C4A`. The live airborne path calls the translated state-11 handler rather than reimplementing its gravity separately. Material attributes are surfaced but many material-specific side effects remain intentionally unimplemented.
 
 ## What still blocks gameplay
 
-- Connect the translated motion helpers to the full player-state dispatcher and implement the remaining shared collision helpers.
-- Drive the player state machine from real object initialization and controller state in the live frontend.
-- Complete neighboring-cell/material collision effects and dynamic object spawning.
+- Expand the live bridge from states 1/11 to the complete controller-driven state transition graph.
+- Implement wall, ceiling, neighboring-cell and material-specific collision side effects.
+- Initialize the real two-player object pair and linked objects from level data.
 - Translate common enemies, barrels, collectibles and level-completion logic.
-- Extend the clean-room IPL protocol into the loaded driver command loop and timer/port behavior.
-- Implement DSP voices, BRR playback, music and effects.
+- Continue the loaded SPC driver into its command/timer loop and implement DSP voices, BRR, music and effects.
 - Implement menus, progression and SRAM compatibility.
-- Compare native frame/input/OAM/VRAM/APUIO traces against an emulator reference.
+- Compare native frame/input/state/OAM/VRAM/APUIO traces against an emulator reference.

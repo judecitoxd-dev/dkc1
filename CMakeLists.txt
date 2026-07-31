@@ -8,6 +8,8 @@ set(CMAKE_C_EXTENSIONS OFF)
 add_library(dk1_core
     src/player_motion.c
     src/player_preview_runtime.c
+    src/player_terrain_runtime.c
+    src/player_live_runtime.c
     src/spc700_ipl_protocol.c
     src/player_core_runtime.c
     src/player_visual_runtime.c
@@ -122,6 +124,9 @@ enable_testing()
 foreach(test_name IN ITEMS
     player_motion
     player_preview_runtime
+    player_terrain_runtime
+    player_live_runtime
+    software_frontend_terrain
     spc700_ipl_protocol
     spc700_ipl_driver_bridge
     player_core_runtime

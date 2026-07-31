@@ -1,16 +1,16 @@
 #ifndef DK1_SOFTWARE_FRONTEND_H
 #define DK1_SOFTWARE_FRONTEND_H
-
 #include <stdbool.h>
 #include <stdint.h>
 #include "dk1/host_input.h"
 #include "dk1/dynamic_stream.h"
 #include "dk1/oam_image.h"
 #include "dk1/player_preview_runtime.h"
+#include "dk1/player_live_runtime.h"
+#include "dk1/player_terrain_runtime.h"
 #include "dk1/player_visual_runtime.h"
 #include "dk1/ppu_compositor.h"
 #include "dk1/scene_runtime.h"
-
 typedef struct Dk1SoftwareFrontend {
     Dk1SceneRuntime runtime;
     Dk1HostInputState input;
@@ -18,26 +18,19 @@ typedef struct Dk1SoftwareFrontend {
     Dk1VramImage player_vram;
     Dk1PlayerVisualStats player_visual;
     Dk1PlayerPreviewRuntime player_preview;
+    Dk1PlayerLiveRuntime player_live;
+    Dk1PlayerTerrainRuntime player_terrain;
     Dk1DynamicStreamState stream;
     uint8_t obsel;
-    int16_t marker_x;
-    int16_t marker_y;
+    int16_t marker_x,marker_y;
     uint16_t marker_tile;
     uint8_t marker_palette;
-    uint16_t player_frame;
-    uint16_t player_tile_base;
-    bool player_visual_ready;
+    uint16_t player_frame,player_tile_base,player_vertical_origin;
+    bool player_visual_ready,player_terrain_ready;
 } Dk1SoftwareFrontend;
-
-bool dk1_software_frontend_init(const Dk1SceneMemory *scene,
-                                uint16_t width, uint16_t height,
-                                Dk1SoftwareFrontend *frontend);
-bool dk1_software_frontend_step(const Dk1SceneMemory *scene, uint16_t held,
-                                Dk1SoftwareFrontend *frontend);
-bool dk1_software_frontend_render(const Dk1RomImage *rom,
-                                  const Dk1SceneMemory *scene,
-                                  Dk1SoftwareFrontend *frontend,
-                                  Dk1RgbaSurface destination);
-uint64_t dk1_software_frontend_signature(const Dk1SoftwareFrontend *frontend);
-
+bool dk1_software_frontend_init(const Dk1SceneMemory*,uint16_t,uint16_t,Dk1SoftwareFrontend*);
+bool dk1_software_frontend_init_with_rom(const Dk1RomImage*,const Dk1SceneMemory*,uint16_t,uint16_t,Dk1SoftwareFrontend*);
+bool dk1_software_frontend_step(const Dk1SceneMemory*,uint16_t,Dk1SoftwareFrontend*);
+bool dk1_software_frontend_render(const Dk1RomImage*,const Dk1SceneMemory*,Dk1SoftwareFrontend*,Dk1RgbaSurface);
+uint64_t dk1_software_frontend_signature(const Dk1SoftwareFrontend*);
 #endif

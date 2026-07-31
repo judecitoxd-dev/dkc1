@@ -1,47 +1,8 @@
 #include "dk1/player_preview_runtime.h"
 #include <string.h>
-
-void dk1_player_preview_init(Dk1PlayerPreviewRuntime *runtime,
-                             int16_t world_x, int16_t world_y) {
-    if (runtime == 0) return;
-    memset(runtime, 0, sizeof(*runtime));
-    runtime->motion.world_x = world_x;
-    runtime->motion.world_y = world_y;
-    runtime->floor_y = world_y;
-    runtime->frame_id = 0x0330u;
-}
-
-void dk1_player_preview_step(Dk1PlayerPreviewRuntime *runtime,
-                             uint16_t held, uint16_t pressed) {
-    bool left;
-    bool right;
-    if (runtime == 0) return;
-    left = (held & DK1_PLAYER_PREVIEW_LEFT) != 0u;
-    right = (held & DK1_PLAYER_PREVIEW_RIGHT) != 0u;
-    if (left && !right) {
-        runtime->motion.target_velocity_x = (int16_t)-0x0180;
-        runtime->facing_left = true;
-    } else if (right && !left) {
-        runtime->motion.target_velocity_x = 0x0180;
-        runtime->facing_left = false;
-    } else {
-        runtime->motion.target_velocity_x = 0;
-    }
-    dk1_player_motion_approach_horizontal(&runtime->motion, 0u);
-
-    if ((pressed & DK1_PLAYER_PREVIEW_JUMP) != 0u && !runtime->airborne) {
-        runtime->motion.velocity_y = 0x0500;
-        runtime->airborne = true;
-        runtime->jumps++;
-    }
-    if (runtime->airborne) dk1_player_motion_apply_gravity(&runtime->motion, false, 0);
-    dk1_player_motion_integrate(&runtime->motion);
-
-    if (runtime->motion.world_y <= runtime->floor_y && runtime->motion.velocity_y <= 0) {
-        runtime->motion.world_y = runtime->floor_y;
-        runtime->motion.subpixel_y = 0u;
-        runtime->motion.velocity_y = 0;
-        runtime->airborne = false;
-    }
-    runtime->frames++;
-}
+void dk1_player_preview_init(Dk1PlayerPreviewRuntime*r,uint16_t x,int16_t y){if(!r)return;memset(r,0,sizeof(*r));r->motion.world_x=x;r->motion.world_y=y;r->floor_y=y;r->frame_id=0x0330u;}
+void dk1_player_preview_apply_input(Dk1PlayerPreviewRuntime*r,uint16_t held,uint16_t pressed){bool l,rr;if(!r)return;l=(held&DK1_PLAYER_PREVIEW_LEFT)!=0u;rr=(held&DK1_PLAYER_PREVIEW_RIGHT)!=0u;if(l&&!rr){r->motion.target_velocity_x=(int16_t)-0x0180;r->facing_left=true;}else if(rr&&!l){r->motion.target_velocity_x=0x0180;r->facing_left=false;}else r->motion.target_velocity_x=0;dk1_player_motion_approach_horizontal(&r->motion,0u);if((pressed&DK1_PLAYER_PREVIEW_JUMP)!=0u&&!r->airborne){r->motion.velocity_y=0x0500;r->airborne=true;r->jumps++;}}
+void dk1_player_preview_integrate(Dk1PlayerPreviewRuntime*r){if(!r)return;dk1_player_motion_integrate(&r->motion);r->frames++;}
+void dk1_player_preview_advance(Dk1PlayerPreviewRuntime*r,uint16_t held,uint16_t pressed){if(!r)return;dk1_player_preview_apply_input(r,held,pressed);if(r->airborne)dk1_player_motion_apply_gravity(&r->motion,false,0);dk1_player_preview_integrate(r);}
+void dk1_player_preview_resolve_floor(Dk1PlayerPreviewRuntime*r,bool valid,int16_t y,uint16_t attrs){if(!r)return;if(valid){r->floor_y=y;r->floor_attributes=attrs;if(r->motion.world_y<=y&&r->motion.velocity_y<=0){bool was=r->airborne;r->motion.world_y=y;r->motion.subpixel_y=0;r->motion.velocity_y=0;r->airborne=false;if(was)r->landings++;return;}}if(!valid||r->motion.world_y>y)r->airborne=true;}
+void dk1_player_preview_step(Dk1PlayerPreviewRuntime*r,uint16_t held,uint16_t pressed){int16_t floor;if(!r)return;floor=r->floor_y;dk1_player_preview_advance(r,held,pressed);dk1_player_preview_resolve_floor(r,true,floor,r->floor_attributes);}

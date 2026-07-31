@@ -1,51 +1,54 @@
 # Progress accounting
 
-## Current total: 96%
+## Current total: 97%
 
-Ninety-six percent refers to completed engineering infrastructure and translated systems, not ninety-six percent playable gameplay.
+Ninety-seven percent refers to completed engineering infrastructure and translated systems, not ninety-seven percent playable gameplay.
 
-| Milestone | Weight | Done | Contribution |
-|---|---:|---:|---:|
-| Reproducible ROM identification and mapping | 5% | 100% | 5.00% |
-| Function discovery, control-flow graph, symbols | 15% | 94% | 14.10% |
-| Portable gameplay/system C | 45% | 100% state coverage + core motion | 45.00% |
-| Graphics, camera, tilemaps, widescreen | 15% | 99% | 14.85% |
-| Audio | 8% | 80% | 6.40% |
-| Input, saves, menus, compatibility | 7% | 85% | 5.95% |
-| Validation and packaging | 5% | 98% | 4.90% |
+The public headline is intentionally held below 100% because the project still lacks a complete original-compatible level loop, actor set, progression and audio output.
 
-Weighted engineering foundation: **96.20%**, rounded to the public **96%** headline. This still does not mean that an original-compatible level is playable from start to finish.
+## Completed in the 96-to-97% stage
 
-## Completed in the 94-to-96% stage
+### Original ROM terrain contacts
 
-### 95% — exact shared fixed-point motion and controlled preview
+- Added `player_terrain_runtime`, backed by the existing level terrain configuration, ROM collision blocks and 64 translated shape curves.
+- Samples left, center and right foot positions and selects the closest valid support surface.
+- Places the preview on an authentic surface and derives a vertical camera value from the 512-pixel collision space.
+- Resolves falling crossings and small slope changes, clearing vertical velocity/subpixels on landing.
+- Propagates the original descriptor/shape attributes into the player runtime for later material-specific behavior.
 
-- Translated `$BF:AF81` default/owner gravity and its `-$0800` clamp.
-- Translated `$BF:AFB2` light gravity with `-$0140/-$0200` terminal values.
-- Translated horizontal `$BF:AFE4` and vertical `$BF:B012` signed 8.8 integration, including fractional carry into the integer coordinate.
-- Translated the nine response functions selected at `$BF:B29E` and the local target approach used by `$BF:B1D5`.
-- Added `player_preview_runtime`: L/R select `-$0180/$0180`, B jumps, facing flips the authentic OAM frame, and movement is no longer direct screen-pixel addition.
-- Landing remains a flat preview baseline. Original ROM terrain/material collision is not claimed complete.
+### Correct unsigned world X
 
-### 96% — clean-room IPL transfer and relaunch bridge
+- Changed the host player world-X representation from signed to unsigned 16-bit.
+- Preserves the original wrapped 16-bit integration while supporting camera/map coordinates above `$8000`.
+- Added coverage using terrain profile 1 at world X `$8630`, corresponding to a level region above the signed boundary.
 
-- Added an IPL behavior model that exposes ready ports `$AA/$BB`, accepts command `$CC`, writes sequential token-acknowledged bytes and launches a requested SPC address.
-- It operates on the existing 64 KiB SPC RAM image and does not include Nintendo's 64-byte IPL ROM.
-- The validator uploads `11 22 33` to `$3000` and relaunches the loaded driver at `$05E8`.
-- This advances protocol coverage beyond the `$FFC0` BRK handoff but does not implement IPL instruction timing, DSP or audible output.
+### Live dispatcher bridge
+
+- Added `player_live_runtime` and connected it to `software_frontend_step`.
+- Grounded frames are identified with state 1 and its exact handler `$BF:87FD` plan.
+- A jump enters state 11 and executes the translated `$BF:8FA7` local handler.
+- The handler's `MOVE` request is satisfied by the fixed-point movement and terrain resolver.
+- Landing transitions the live bridge back to state 1.
+
+### ROM-aware frontend initialization
+
+- Added `dk1_software_frontend_init_with_rom`.
+- X11, frontend probe and whole-cartridge frontend validation can bind terrain before the first frame.
+- The old ROM-less initializer remains for deterministic synthetic tests and fallback use.
+- The object renderer uses a 512-pixel vertical origin when authentic terrain is active and retains 224 for the legacy fallback.
 
 ## Validation
 
-- Added tests for fixed-point motion, host preview motion and the clean-room IPL protocol.
-- Updated the software frontend test for velocity/subpixel movement and jumping.
-- Twelve focused tests pass together with `-Wall -Wextra -Wpedantic -Werror`.
-- Configured project validation increases from 80 to 84 tests.
-- The gameplay validator now reports deterministic motion accumulators and the IPL transfer/relaunch result.
+- Added `player_terrain_runtime`, `player_live_runtime` and `software_frontend_terrain` test targets.
+- Configured validation increases from 84 to 87 tests.
+- Fifteen focused tests pass locally with `-Wall -Wextra -Wpedantic -Werror`.
+- The gameplay validator checks an authentic terrain jump/landing trace and the state-11-to-state-1 transition.
+- The frontend validator now reports how many of the 230 scenes bind ROM terrain and execute a local state on its test frame; its aggregate signature must be regenerated because runtime state changed.
 
 ## Next measurable targets
 
-- Connect ROM terrain contacts and material side effects to `player_preview_runtime`, replacing the flat landing plane.
-- Advance the actual player dispatcher every frontend frame rather than using a host-only preview controller.
+- Add wall/ceiling and material-specific side effects to the terrain bridge.
+- Drive additional translated states from controller input and collision results.
 - Translate one common barrel or enemy through scheduler, collision, animation, DMA and OAM.
-- Continue from the IPL protocol into the loaded driver's port/timer command loop.
-- Add emulator-reference traces and begin menus/progression/SRAM compatibility.
+- Continue from the IPL transfer into the loaded driver's command/timer loop.
+- Begin level completion, menus, progression and SRAM compatibility.
