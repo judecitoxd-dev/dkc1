@@ -6,6 +6,8 @@
 #include "dk1/level_dispatch.h"
 #include "dk1/nmi_dispatch.h"
 #include "dk1/object_runtime.h"
+#include "dk1/object_scheduler.h"
+#include "dk1/ppu_scroll.h"
 #include "dk1/reset_state.h"
 #include "dk1/state_sequence.h"
 
@@ -19,6 +21,9 @@ int main(void) {
     Dk1CameraState camera = {-1, -1, 1u, 1u};
     Dk1LevelDispatchEntry level_dispatch = {0};
     Dk1ObjectTypeDispatch object_type = {0};
+    Dk1ObjectFrameState object_frame = {0};
+    Dk1ObjectFrameResult object_result;
+    Dk1PpuScrollState scroll;
     size_t upload_count = 0;
     size_t state_count = 0;
 
@@ -27,6 +32,10 @@ int main(void) {
     (void)dk1_level_dispatch_get(0u, &level_dispatch);
     (void)dk1_object_type_dispatch_get(0u, &object_type);
     dk1_camera_clamp_original(&camera, camera_bounds, 0u);
+
+    object_frame.type_id[1] = 1u;
+    object_result = dk1_object_run_frame(&object_frame, NULL, NULL);
+    scroll = dk1_ppu_scroll_half_parallax(0x0123u, 0x00F1u);
 
     puts("dk1 clean-room PC workspace");
     printf("boot model: native=%s irq_disabled=%s fastrom=%s sp=$%04X\n",
@@ -60,11 +69,20 @@ int main(void) {
            (unsigned)dk1_object_type_count(),
            (unsigned)DK1_OBJECT_CALLBACK_BANK,
            (unsigned)object_type.callback_address_bf);
+    printf("object scheduler: secondary=%u primary=%u post_update=%s\n",
+           (unsigned)object_result.secondary_callbacks,
+           (unsigned)object_result.primary_callbacks,
+           object_result.post_update_requested ? "yes" : "no");
     printf("camera model: origin=(%d,%d) SNES viewport=%ux%u widescreen-ready=yes\n",
            (int)camera.x,
            (int)camera.y,
            (unsigned)DK1_SNES_VIEWPORT_WIDTH,
            (unsigned)DK1_SNES_VIEWPORT_HEIGHT);
+    printf("parallax model: BG1=(%u,%u) BG2=(%u,%u)\n",
+           (unsigned)scroll.bg1_x,
+           (unsigned)scroll.bg1_y,
+           (unsigned)scroll.bg2_x,
+           (unsigned)scroll.bg2_y);
     puts("gameplay status: runtime foundations implemented; playable scene not yet implemented");
     return 0;
 }
