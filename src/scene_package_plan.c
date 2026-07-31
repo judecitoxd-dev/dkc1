@@ -1,0 +1,2 @@
+#include "dk1/scene_package_plan.h"
+bool dk1_scene_package_plan(uint16_t level,uint8_t primary,bool special,bool state6,Dk1ScenePackagePlan*p){uint8_t common=21;if(!p||primary>=30)return false;p->count=0;p->ids[p->count++]=primary;if(special){common=25;if(level==0x00D2)common=22;else if(level==0x006C)common=23;else if(level==0x00D3)common=24;}p->ids[p->count++]=common;p->ids[p->count++]=4;if(state6)p->ids[p->count++]=6;p->ids[p->count++]=20;return true;}

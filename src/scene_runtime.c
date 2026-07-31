@@ -1,0 +1,2 @@
+#include "dk1/scene_runtime.h"
+bool dk1_scene_runtime_step(const Dk1SceneMemory*s,uint16_t h,Dk1SceneRuntime*r){int32_t x,y;if(!s||!r)return false;x=r->view.camera_x;y=r->view.camera_y;if(h&DK1_RUNTIME_LEFT)x-=4;if(h&DK1_RUNTIME_RIGHT)x+=4;if(h&DK1_RUNTIME_UP)y-=4;if(h&DK1_RUNTIME_DOWN)y+=4;if(x<0)x=0;if(y<0)y=0;r->view.camera_x=(uint16_t)x;r->view.camera_y=(uint16_t)y;if(!dk1_scene_view_clamp(s,&r->view))return false;r->frame++;return true;}
