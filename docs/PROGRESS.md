@@ -1,69 +1,69 @@
 # Progress accounting
 
-## Current total: 64%
+## Current total: 70%
 
-Sixty-four percent refers to completed engineering infrastructure and translated systems, not sixty-four percent playable gameplay.
+Seventy percent refers to completed engineering infrastructure and translated systems, not seventy percent playable gameplay.
 
 | Milestone | Weight | Done | Contribution |
 |---|---:|---:|---:|
 | Reproducible ROM identification and mapping | 5% | 100% | 5.00% |
-| Function discovery, control-flow graph, symbols | 15% | 73% | 10.95% |
-| Portable gameplay/system C | 45% | 81% | 36.45% |
-| Graphics, camera, tilemaps, widescreen | 15% | 87% | 13.05% |
-| Audio | 8% | 22% | 1.76% |
-| Input, saves, menus, compatibility | 7% | 64% | 4.48% |
-| Validation and packaging | 5% | 72% | 3.60% |
+| Function discovery, control-flow graph, symbols | 15% | 76% | 11.40% |
+| Portable gameplay/system C | 45% | 87% | 39.15% |
+| Graphics, camera, tilemaps, widescreen | 15% | 89% | 13.35% |
+| Audio | 8% | 35% | 2.80% |
+| Input, saves, menus, compatibility | 7% | 65% | 4.55% |
+| Validation and packaging | 5% | 76% | 3.80% |
 
-Weighted pipeline foundation: **75.29%**. The public headline remains **64%** because no original-compatible level is playable from start to finish.
+Weighted pipeline foundation: **80.05%**. The public headline remains **70%** because no original-compatible level is playable from start to finish.
 
-## Completed in the 58-to-64% stage
+## Completed in the 64-to-70% stage
 
-### 59% — exact player input fan-out
+### 65% — player states 20–26
 
-- Translated the action order at `$BF:B2C5-$BF:B3D2`.
-- Preserves directional precedence, neutral handlers, held-button branches and the `$1917` B-release side effect.
-- Exposes the ordered calls without pretending the individual action handlers are already translated.
+- Added an exact state-20 call plan without pretending its linked-object helper is complete.
+- Added executable semantics for states 21–26.
+- Preserves guard exits, input modes `$0C`, `$00`, `$02`, `$07`, animation dispatch and ordered shared calls.
 
-### 60% — compact player states 6–19
+### 66% — player states 27–34
 
-- Added executable local semantics for 13 compact handlers.
-- Covers target following, input wrappers, scripted launch/timer behavior, gravity clamping, no-op/movement states, countdown transitions and collision-stop wrappers.
-- Unknown callees are returned as explicit required-call flags.
+- Added executable semantics for scripted movement setup, camera-relative launch, animation-preserving movement, facing-dependent velocity and clamped vertical acceleration.
+- State transitions to `$1D`, `$1E` and `$20` and writes to `$051A`, `$11A1`, `$0E89`, `$0EF1` and `$0F25` are represented directly.
 
-### 61% — player interrupt guard
+### 67% — original animation frame records
 
-- Translated local side effects of `$BF:A132-$BF:A1B8`.
-- Handles requests `$01`, `$20`, `$40` and `$80`, preserving state transitions `$19`, `$15`, `$01`, `$1A`, effect ids and abort behavior.
+- Translated the normal-frame timing path beginning at `$BE:80E1`.
+- Uses `$1105` accumulator, `$1139` speed, `$116D` script pointer and `$0D11` frame output.
+- Reads animation roots from the table at `$BE:8572`.
 
-### 62% — translation coverage and ROM validation
+### 68% — common animation commands
 
-- Tracks untranslated, plan-only and local-semantic state levels.
-- Current coverage is 13 executable local states plus two exact wrapper plans out of 87.
-- Supported-ROM translation signature: `0197E755C75F01D8`.
+- Supports restart commands `$80/$91`, long/local external calls `$81/$83`, script jump `$82`, callback installation `$84` and event commands `$8E-$90`.
+- Complex paired-object commands `$85-$8D` remain explicit unsupported results.
+- Supported-ROM animation zero produces first frame `$0330`.
 
-### 63% — dynamic tilemap VRAM writes
+### 69% — SPC700 bootstrap CPU subset
 
-- Converts entering 32-pixel map columns into four 8-pixel tile columns.
-- Writes authentic metatile words into 32x32, 64x32, 32x64 or 64x64 reconstructed BG tilemaps with ring wrapping.
-- This binds camera column tracking to real VRAM state; exact SNES DMA scheduling remains pending.
+- Added the exact instruction subset used by the 40-byte payload at `$04B8`.
+- Implements MOV, CMP, AND, conditional/unconditional branches, indirect store and indexed indirect jump operations required by the payload.
 
-### 64% — exact SPC bootstrap image
+### 70% — executable SPC transfer and launch
 
-- Reads the 40-byte upload source used by `$CA:B10E` from `$8A:A342`.
-- Supported-ROM bootstrap signature: `F2BE1E6916EC4EC2`.
-- The CPU transport and boot payload are now identified; SPC700 execution and DSP synthesis remain pending.
+- Executes the cartridge bootstrap itself to transfer bytes through `$F4-$F7`.
+- Verifies alternating odd upload tokens and an even launch token.
+- Follows `JMP [!$00F6+X]` into the uploaded payload.
+- Supported validation performs two byte transfers and reaches `$2000` after 40 executed instructions.
 
 ## Validation
 
-- Six new C tests pass locally with `-Wall -Wextra -Wpedantic -Werror`.
-- Configured validation increases from 60 to 66 tests.
-- `dk1_gameplay_validate` reports `planned=15`, `local=13`, `invalid=0`.
-- Existing frontend validation remains 230/230 scenes with zero failures.
+- Three new focused C tests pass with `-Wall -Wextra -Wpedantic -Werror`.
+- Focused local workspace passes 36/36 tests.
+- Configured project validation increases from 66 to 69 tests.
+- `dk1_gameplay_validate` reports 30 planned states, 27 local states and zero invalid translated handlers.
 
 ## Next measurable targets
 
-- Translate movement-heavy player handlers and their velocity approach tables.
-- Decode original animation script records and produce player OAM entries.
-- Connect dynamic tile writes to exact NMI/DMA timing.
-- Load and execute enough SPC700 code for the first sound command.
-- Translate a common enemy/object behavior against the existing scheduler.
+- Translate the movement-heavy player states beginning at 35 and their fixed-point integration.
+- Implement paired-object animation commands and bind real frames to OAM pieces.
+- Trace the larger SPC700 driver upload and execute the first real sound command.
+- Connect dynamic tile writes to exact NMI/DMA queues.
+- Translate one common enemy/object type through scheduler, collision and OAM.

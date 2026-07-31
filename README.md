@@ -4,7 +4,7 @@ This repository is a clean-room native PC reimplementation of the SNES game iden
 
 ## Current status
 
-**Overall engineering progress: 64%**
+**Overall engineering progress: 70%**
 
 The percentage measures completed and tested engineering systems. It is not the percentage of gameplay currently playable and is not based on ROM bytes converted.
 
@@ -12,27 +12,29 @@ The percentage measures completed and tested engineering systems. It is not the 
 |---|---:|
 | Cartridge identity / HiROM mapping | 100% |
 | Reset-vector and boot-entry analysis | 80% |
-| Routine discovery and symbol map | 73% |
-| Semantic portable C | 81% |
-| PC rendering / widescreen | 87% |
-| Input / saves / menus / compatibility | 62% |
-| Audio command path | 22% |
+| Routine discovery and symbol map | 76% |
+| Semantic portable C | 87% |
+| PC rendering / widescreen | 89% |
+| Input / saves / menus / compatibility | 65% |
+| Audio command/bootstrap path | 35% |
 
-The runtime still reconstructs and renders all 230 level/location scenes. The player path now includes the exact `$BF:B2C5` input fan-out, local semantics for 13 compact handlers in states 6–19, the `$BF:A132` interrupt guard, explicit translation coverage, and dynamic visual-column writes into reconstructed BG tilemap VRAM. The audio path can also read and fingerprint the exact 40-byte SPC bootstrap block uploaded from `$8A:A342`.
+The runtime reconstructs and renders all 230 level/location scenes. The original player dispatcher now has 27 states with executable local semantics and three additional exact plans. States 21–34 cover input/movement wrappers, scripted transitions, camera-relative launch behavior and movement initialization. The object animation path now interprets normal frame records and common control commands from the original bank-$BE scripts.
 
-The player dispatcher was validated directly against the supported ROM:
+The uploaded 40-byte SPC700 bootstrap is no longer only identified: a bounded SPC700 instruction subset executes it, transfers bytes through the original port protocol and follows the indirect jump into an uploaded payload.
+
+Current gameplay/audio validation for the supported ROM:
 
 ```text
-player_states=87 invalid=0 wrapper_plans=2 signature=2BF70E846ED72122
+player_states=87 planned=30 local=27 invalid=0 translation=1D1529F0FAF5E93F apu_boot=F2BE1E6916EC4EC2 animation=0330 spc_steps=40
 ```
 
-The existing whole-cartridge frontend validation remains:
+The whole-cartridge frontend validation remains:
 
 ```text
 frontends=230 failed=0 signature=2BA007DBD5D4A725
 ```
 
-This is still not a complete playable or pixel-perfect port. Thirteen compact player states now have executable local semantics and two additional states have exact wrapper plans, but the movement-heavy handlers, original animation scripts and complete object/OAM construction remain pending.
+This is still not a complete playable or pixel-perfect port. Movement-heavy states, complete animation command coverage, original object-to-OAM construction, SPC700 driver execution and DSP synthesis remain pending.
 
 ## ROM required locally
 
@@ -50,26 +52,13 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-There are now **66 automated tests configured**: 65 C tests and one Python control-flow test. The six tests introduced in this stage pass locally with warnings treated as errors.
+There are now **69 automated tests configured**: 68 C tests and one Python control-flow test. The three tests introduced in this stage pass locally, and the focused local workspace passes 36/36 tests.
 
-## Validate the original player dispatcher
-
-```bash
-./build/dk1_player_validate \
-  "rom/Donkey Kong Country (USA) (Rev 2).sfc"
-```
-
-## Validate translated gameplay coverage
+## Validate translated gameplay and bootstrap execution
 
 ```bash
 ./build/dk1_gameplay_validate \
   "rom/Donkey Kong Country (USA) (Rev 2).sfc"
-```
-
-Expected result:
-
-```text
-player_states=87 planned=15 local=13 invalid=0 translation=0197E755C75F01D8 apu_boot=F2BE1E6916EC4EC2
 ```
 
 ## Interactive preview
@@ -84,14 +73,14 @@ When X11 is available:
 
 ## Accuracy boundary
 
-The player callback addresses, state table, compact state semantics, input action order, interrupt transitions, terrain samples, APU handshake constants, bootstrap source and mailbox token behavior are tied to confirmed ROM routines. Dynamic tile streaming writes authentic expanded map words into reconstructed VRAM, but exact DMA timing is still pending. The visible marker remains diagnostic and is not yet Donkey Kong's original animation or full physics.
+State addresses, wrapper order, local field mutations, animation timing/pointer behavior, the supported animation control commands and the SPC700 bootstrap opcodes are tied to confirmed cartridge routines. Complex paired-object animation commands are returned as unsupported instead of being guessed. The visible frontend marker remains diagnostic and is not yet Donkey Kong's original object-to-OAM output.
 
 ## What still blocks gameplay
 
-- Translate most of the 87 original player state handlers.
-- Decode original player animation records and object-to-OAM construction.
+- Translate the remaining 57 player states, especially movement-heavy handlers.
+- Finish all original animation commands and object-to-OAM construction.
 - Complete neighboring-cell and material collision side effects.
-- Reproduce exact dynamic VRAM streaming and object spawning while moving.
-- Implement SPC700 program execution, music and sound synthesis.
+- Reproduce exact NMI/DMA scheduling and object spawning during scrolling.
+- Load and execute the larger SPC700 driver, then implement DSP music and effects.
 - Translate enemies, barrels, collectibles, menus, progression and SRAM compatibility.
 - Compare native frame traces against an emulator reference.
