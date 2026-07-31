@@ -2,12 +2,16 @@
 #include <string.h>
 #include "dk1/apu_boot_image.h"
 #include "dk1/apu_driver_catalog.h"
+#include "dk1/nmi_vram_dma.h"
 #include "dk1/object_animation_script.h"
+#include "dk1/object_frame_dma.h"
 #include "dk1/object_frame_layout.h"
+#include "dk1/object_screen_oam.h"
 #include "dk1/player_coverage.h"
 #include "dk1/player_dispatch.h"
 #include "dk1/rom_image.h"
 #include "dk1/spc700_bootstrap.h"
+#include "dk1/spc700_driver_startup.h"
 
 int main(int argc, char **argv) {
     Dk1OwnedRom owned = {0};
@@ -15,9 +19,17 @@ int main(int argc, char **argv) {
     Dk1RomIdentity identity;
     Dk1ApuBootImage apu;
     Dk1Spc700BootstrapCpu spc;
+    Dk1Spc700DriverStartup driver;
+    Dk1Spc700DriverTrace driver_trace;
     Dk1ObjectAnimationScriptState animation;
     Dk1AnimationScriptResult animation_result;
     Dk1ObjectFrameLayout frame_layout;
+    Dk1ObjectFrameOamStyle style = {0x0040u, 0u, 3u, false, false};
+    Dk1ObjectScreenTransform transform = {100, 80, 20, 224, 0, 0, 0};
+    Dk1ObjectScreenOamStats screen_stats = {0};
+    Dk1ObjectFrameDmaStats frame_dma = {0};
+    Dk1NmiVramDmaQueue dma_queue;
+    Dk1OamImage oam;
     uint16_t state;
     unsigned invalid = 0u;
     bool spc_ok;
@@ -53,16 +65,33 @@ int main(int argc, char **argv) {
         ++invalid;
 
     if (!dk1_object_frame_layout_read(&rom, animation.frame, &frame_layout) ||
-        frame_layout.source_pc != 0xD7620Au || frame_layout.piece_count != 12u)
+        frame_layout.source_pc != 0xD7620Au || frame_layout.piece_count != 12u) {
         ++invalid;
-    else
+    } else {
         frame_signature = dk1_object_frame_layout_signature(&frame_layout);
+        dk1_oam_init(&oam);
+        if (!dk1_object_frame_emit_screen_oam(&frame_layout, transform, style, 0u, 0u,
+                                               &oam, &screen_stats) ||
+            screen_stats.written != 12u)
+            ++invalid;
+        dk1_nmi_vram_dma_init(&dma_queue);
+        if (!dk1_object_frame_dma_schedule(&frame_layout, style.base_tile_number,
+                                           &dma_queue, &frame_dma) ||
+            frame_dma.records != 2u || frame_dma.bytes != 576u)
+            ++invalid;
+    }
 
     dk1_spc700_bootstrap_init(&spc, &apu);
     spc_ok = dk1_spc700_bootstrap_send_byte(&spc, 1u, 0x2000u, 0x12u, 256u) &&
              dk1_spc700_bootstrap_send_byte(&spc, 3u, 0x2001u, 0x34u, 256u) &&
              dk1_spc700_bootstrap_launch(&spc, 4u, 0x2000u, 256u);
     if (!spc_ok) ++invalid;
+
+    if (!dk1_spc700_driver_startup_load(&rom, &driver) ||
+        !dk1_spc700_driver_trace_entry(&driver, 0x5Au, 64u, &driver_trace) ||
+        driver_trace.instructions != 11u || driver_trace.unsupported_pc != 0x1076u ||
+        driver_trace.unsupported_opcode != 0xBEu)
+        ++invalid;
 
     if (!dk1_apu_driver_catalog_validate(&rom, &apu_sources, &apu_bytes)) ++invalid;
     catalog_signature = dk1_apu_driver_catalog_signature(&rom);
@@ -71,7 +100,10 @@ int main(int argc, char **argv) {
 
     printf("player_states=%u planned=%u local=%u invalid=%u "
            "translation=%016llX apu_boot=%016llX animation=%04X "
-           "frame_pieces=%u frame_layout=%016llX spc_steps=%llu "
+           "frame_pieces=%u frame_layout=%016llX screen_oam=%u "
+           "frame_dma_records=%u frame_dma_bytes=%u spc_steps=%llu "
+           "driver_code=%016llX driver_data=%016llX driver_ram=%016llX "
+           "driver_steps=%llu driver_pc=%04X driver_stop=%02X "
            "apu_sources=%u apu_bytes=%u apu_catalog=%016llX apu_payload=%016llX\n",
            (unsigned)DK1_PLAYER_STATE_COUNT,
            (unsigned)dk1_player_planned_state_count(),
@@ -82,7 +114,16 @@ int main(int argc, char **argv) {
            animation.frame,
            (unsigned)frame_layout.piece_count,
            (unsigned long long)frame_signature,
+           (unsigned)screen_stats.written,
+           (unsigned)frame_dma.records,
+           (unsigned)frame_dma.bytes,
            (unsigned long long)spc.instructions,
+           (unsigned long long)driver.code_signature,
+           (unsigned long long)driver.data_signature,
+           (unsigned long long)driver.ram_signature,
+           (unsigned long long)driver_trace.instructions,
+           driver_trace.unsupported_pc,
+           driver_trace.unsupported_opcode,
            (unsigned)apu_sources,
            (unsigned)apu_bytes,
            (unsigned long long)catalog_signature,
