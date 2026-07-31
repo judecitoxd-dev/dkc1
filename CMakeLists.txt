@@ -6,6 +6,10 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 
 add_library(dk1_core
+    src/player_final_runtime.c
+    src/object_screen_oam.c
+    src/object_frame_dma.c
+    src/spc700_driver_startup.c
     src/player_late_runtime.c
     src/object_frame_layout.c
     src/nmi_vram_dma.c
@@ -111,6 +115,10 @@ target_link_libraries(dk1_gameplay_validate PRIVATE dk1_core)
 enable_testing()
 
 foreach(test_name IN ITEMS
+    player_final_runtime
+    object_screen_oam
+    object_frame_dma
+    spc700_driver_startup
     player_late_runtime
     object_frame_layout
     nmi_vram_dma
