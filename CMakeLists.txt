@@ -13,6 +13,8 @@ add_library(dk1_core
     src/level_dispatch.c
     src/nmi_dispatch.c
     src/object_runtime.c
+    src/object_scheduler.c
+    src/ppu_scroll.c
     src/reset_state.c
     src/state_sequence.c
 )
@@ -38,6 +40,8 @@ foreach(test_name IN ITEMS
     level_dispatch
     nmi_dispatch
     object_runtime
+    object_scheduler
+    ppu_scroll
     state_sequence
 )
     add_executable(test_${test_name} tests/test_${test_name}.c)
