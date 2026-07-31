@@ -4,8 +4,7 @@ bool dk1_level_map_cell(const Dk1RomImage *rom,
                         const Dk1LevelTerrainConfig *config,
                         size_t column, size_t row_from_top,
                         uint16_t *cell) {
-    const size_t stored_row = 15u - row_from_top;
-    const size_t index = column * DK1_LEVEL_MAP_ROWS + stored_row;
+    const size_t index = row_from_top * 64u + column;
     if (rom == NULL || config == NULL || cell == NULL || row_from_top >= 16u) {
         return false;
     }
