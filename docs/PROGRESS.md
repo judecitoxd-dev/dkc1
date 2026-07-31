@@ -1,6 +1,6 @@
 # Progress accounting
 
-## Current total: 4%
+## Current total: 5%
 
 The total is milestone-weighted so it cannot be inflated by generating thousands
 of meaningless C stubs.
@@ -8,15 +8,15 @@ of meaningless C stubs.
 | Milestone | Weight | Done | Contribution |
 |---|---:|---:|---:|
 | Reproducible ROM identification and mapping | 5% | 100% | 5.00% |
-| Function discovery, control-flow graph, symbols | 15% | 35% | 5.25% |
-| Portable gameplay/system C | 45% | 5% | 2.25% |
-| Graphics, camera, tilemaps, widescreen | 15% | 1% | 0.15% |
+| Function discovery, control-flow graph, symbols | 15% | 40% | 6.00% |
+| Portable gameplay/system C | 45% | 7% | 3.15% |
+| Graphics, camera, tilemaps, widescreen | 15% | 4% | 0.60% |
 | Audio | 8% | 0% | 0.00% |
 | Input, saves, menus, compatibility | 7% | 0% | 0.00% |
-| Validation and packaging | 5% | 3% | 0.15% |
+| Validation and packaging | 5% | 4% | 0.20% |
 
-Weighted pipeline foundation: **12.80%**. The public headline remains a
-conservative **4%** because the executable still has no playable scene.
+Weighted pipeline foundation: **14.95%**. The public headline remains a
+conservative **5%** because the executable still has no playable scene.
 
 ## What counts as converted
 
@@ -29,21 +29,22 @@ A routine counts only when:
 
 ## Completed in this stage
 
-- Resolved the 230-entry paired dispatch table at `$80:C56C` used by `$80:9729/$80:972D`.
-- Resolved the 230-entry banked dispatch at `$BF:FDC8` used by `$80:86E0`.
-- Resolved all three 230-entry bank `$B9` level dispatch tables.
-- Resolved the static command tables at `$B5:8080`, `$B8:A9F2`, `$81:D31B`, `$BD:F8D2`, and `$BE:83CD`.
-- Resolved the 122-entry object-type handler table at `$BF:817C`.
-- Expanded the graph to 725 routine entries and 21,143 unique instruction addresses.
-- Recorded 423 confirmed indirect edges while retaining 69 dynamic sites as unresolved.
-- Added a portable C lookup model for six callbacks across all 230 level/location ids.
-- Added JSON-based indirect target loading to make the expanded analysis reproducible.
-- Expanded automated validation from seven to eight passing tests.
+- Confirmed 58 object slots represented by even WRAM offsets from `$0000` through `$0072`.
+- Confirmed the primary update pool at slots `1-25` and the secondary pool at slots `26-57`.
+- Confirmed object type, position, flags, script, and callback parallel arrays.
+- Reimplemented 24-bit object callback composition from `$130D/$1341`.
+- Added the complete 122-record `$BF:817C` object-type dispatch table to portable C.
+- Preserved the observed object ordering value (`attributes & $003F`) and special-pass bit (`$0080`).
+- Confirmed `$088B/$0895` as the camera X/Y origin from object rendering subtraction.
+- Confirmed horizontal limits `$1B23/$1B25` and the original vertical clamp behavior.
+- Added a configurable host viewport rectangle so widescreen dimensions remain separate from original simulation state.
+- Expanded automated validation from eight to ten tests.
 
 ## Next measurable targets
 
-- Classify the 69 remaining indirect sites into static tables, script callbacks, and object callbacks.
-- Translate the shared level-frame routines selected by `$80:9723` into portable C behavior.
-- Identify the object list fields around `$0Axx-$19xx` and the callback fields `$130D/$1341`.
-- Identify camera coordinates and scrolling limits used by the bank `$B9` level initialization paths.
-- Replace SNES callback addresses with host callback identifiers as routines are translated.
+- Translate the primary object iteration policy at `$BF:8000-$BF:80F2` into host callback invocation.
+- Replace translated object callback addresses with stable host callback identifiers.
+- Identify collision and terrain-query fields used by the shared frame callbacks.
+- Determine tilemap streaming coordinates derived from camera X/Y.
+- Render the first static level background before enabling gameplay movement.
+- Continue classifying the remaining dynamic script callback sites without guessing targets.
