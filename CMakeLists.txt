@@ -6,6 +6,7 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 
 add_library(dk1_core
+    src/apu_mailbox.c
     src/bg_renderer.c
     src/boot_control.c
     src/boot_memory.c
@@ -13,6 +14,7 @@ add_library(dk1_core
     src/camera.c
     src/cgram_image.c
     src/dkc_decompress.c
+    src/dynamic_stream.c
     src/frame_replay.c
     src/frame_runtime.c
     src/host_callback.c
@@ -31,6 +33,10 @@ add_library(dk1_core
     src/object_executor.c
     src/object_runtime.c
     src/object_scheduler.c
+    src/player_common.c
+    src/player_dispatch.c
+    src/player_events.c
+    src/player_state_plan.c
     src/ppu_bg_renderer.c
     src/ppu_compositor.c
     src/ppu_effects.c
@@ -54,6 +60,7 @@ add_library(dk1_core
     src/software_frontend.c
     src/state_sequence.c
     src/terrain.c
+    src/terrain_contacts.c
     src/tilemap_renderer.c
     src/vram_image.c
     src/vram_package.c
@@ -68,32 +75,28 @@ endif()
 
 add_executable(dk1_pc src/main.c)
 target_link_libraries(dk1_pc PRIVATE dk1_core)
-
 add_executable(dk1_asset_probe src/asset_probe.c)
 target_link_libraries(dk1_asset_probe PRIVATE dk1_core)
-
 add_executable(dk1_level_probe src/level_probe.c)
 target_link_libraries(dk1_level_probe PRIVATE dk1_core)
-
 add_executable(dk1_vram_probe src/vram_probe.c)
 target_link_libraries(dk1_vram_probe PRIVATE dk1_core)
-
 add_executable(dk1_scene_probe src/scene_probe.c)
 target_link_libraries(dk1_scene_probe PRIVATE dk1_core)
-
 add_executable(dk1_scene_validate src/scene_validate.c)
 target_link_libraries(dk1_scene_validate PRIVATE dk1_core)
-
 add_executable(dk1_frontend_probe src/frontend_probe.c)
 target_link_libraries(dk1_frontend_probe PRIVATE dk1_core)
-
 add_executable(dk1_frontend_validate src/frontend_validate.c)
 target_link_libraries(dk1_frontend_validate PRIVATE dk1_core)
+add_executable(dk1_player_validate src/player_validate.c)
+target_link_libraries(dk1_player_validate PRIVATE dk1_core)
 
 enable_testing()
 
 foreach(test_name IN ITEMS
     reset
+    apu_mailbox
     bg_renderer
     boot_memory
     boot_control
@@ -101,6 +104,7 @@ foreach(test_name IN ITEMS
     camera
     cgram_image
     dkc_decompress
+    dynamic_stream
     frame_replay
     frame_runtime
     host_callback
@@ -120,6 +124,10 @@ foreach(test_name IN ITEMS
     object_executor
     object_runtime
     object_scheduler
+    player_common
+    player_dispatch
+    player_events
+    player_state_plan
     ppu_bg_renderer
     ppu_compositor
     ppu_effects
@@ -142,6 +150,7 @@ foreach(test_name IN ITEMS
     software_frontend
     state_sequence
     terrain
+    terrain_contacts
     tilemap_renderer
     vram_image
     vram_package
@@ -153,10 +162,7 @@ endforeach()
 
 find_package(Python3 COMPONENTS Interpreter)
 if(Python3_Interpreter_FOUND)
-    add_test(
-        NAME cfg65816
-        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_cfg65816.py
-    )
+    add_test(NAME cfg65816 COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_cfg65816.py)
 endif()
 
 find_package(X11)
