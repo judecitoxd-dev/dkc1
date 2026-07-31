@@ -4,7 +4,7 @@ This repository is an early clean-room native PC reimplementation workspace for 
 
 ## Current status
 
-**Overall engineering progress: 21%**
+**Overall engineering progress: 26%**
 
 The percentage measures completed, tested reimplementation work. It is not the percentage of ROM bytes copied into C. ROM bytes, original graphics, music, level geometry, and other copyrighted assets are deliberately not committed.
 
@@ -12,17 +12,17 @@ The percentage measures completed, tested reimplementation work. It is not the p
 |---|---:|
 | Cartridge identity / HiROM mapping | 100% |
 | Reset-vector and boot-entry analysis | 80% |
-| Routine discovery and symbol map | 50% |
-| Semantic portable C | 35% |
-| PC rendering / widescreen | 36% |
-| Input / saves / menus / compatibility | 22% |
+| Routine discovery and symbol map | 55% |
+| Semantic portable C | 43% |
+| PC rendering / widescreen | 45% |
+| Input / saves / menus / compatibility | 25% |
 | Audio | 0% |
 
-Current verified analysis covers **725 routine entries**, **21,143 unique instruction addresses**, and **423 confirmed indirect edges**. The runtime now reads the 14 terrain/streaming profiles selected by `$81:8C67`, binds actual map and collision data from the local ROM, expands the original 32x32 visual metatiles with SNES flip semantics, expands complete map columns into 8x8 tilemap words, and produces a diagnostic map with reconstructed collision drawn over it.
+The runtime now resolves all 230 level/location ids to their real terrain profiles, parses all 23 compact PPU presets, parses the 30 VRAM package lists and their 96 DMA records, translates the `$B8:982F` graphics decompressor, reconstructs ROM- and WRAM-sourced VRAM uploads, and can render authentic decompressed 4bpp cartridge tiles with a local-ROM palette.
 
-The executable frame path remains functional. `dk1_asset_probe` previews raw tile/palette ranges and `dk1_level_probe` renders actual level-layout metadata from the user's local ROM. The level probe intentionally uses diagnostic colors for tilemap words because the corresponding compressed graphics and VRAM package formats are not translated yet.
+The executable frame path remains functional. `dk1_asset_probe` previews raw ranges, `dk1_level_probe` renders real map/collision metadata, and `dk1_vram_probe` reconstructs a selected VRAM package and produces a tile sheet. A complete original-compatible level is still not playable.
 
-See [`docs/PROGRESS.md`](docs/PROGRESS.md), [`docs/FRAME_RUNTIME.md`](docs/FRAME_RUNTIME.md), [`docs/ROM_ASSETS_TERRAIN.md`](docs/ROM_ASSETS_TERRAIN.md), and [`docs/LEVEL_MAP_PIPELINE.md`](docs/LEVEL_MAP_PIPELINE.md).
+See [`docs/PROGRESS.md`](docs/PROGRESS.md), [`docs/FRAME_RUNTIME.md`](docs/FRAME_RUNTIME.md), [`docs/ROM_ASSETS_TERRAIN.md`](docs/ROM_ASSETS_TERRAIN.md), [`docs/LEVEL_MAP_PIPELINE.md`](docs/LEVEL_MAP_PIPELINE.md), and [`docs/VRAM_PACKAGE_PIPELINE.md`](docs/VRAM_PACKAGE_PIPELINE.md).
 
 ## ROM required locally
 
@@ -47,19 +47,9 @@ ctest --test-dir build --output-on-failure
 ./build/dk1_pc
 ```
 
-There are currently **28 automated tests**: 27 C runtime tests and one Python control-flow test.
-
-## Local asset preview
-
-```bash
-./build/dk1_asset_probe \
-  "rom/Donkey Kong Country (USA) (Rev 2).sfc" \
-  C00000 C00400 preview.ppm
-```
+There are currently **33 automated tests**: 32 C runtime tests and one Python control-flow test.
 
 ## Level map and collision preview
-
-The supported ROM contains 14 terrain/streaming profiles. This example renders the first eight 32-pixel columns of profile zero:
 
 ```bash
 ./build/dk1_level_probe \
@@ -67,11 +57,19 @@ The supported ROM contains 14 terrain/streaming profiles. This example renders t
   0 8 level0-diagnostic.ppm
 ```
 
-The output is a structural diagnostic: tilemap entries receive deterministic colors and the reconstructed collision floor is drawn in red. It does not claim to be the final original background image.
+## Reconstructed VRAM tile sheet
+
+```bash
+./build/dk1_vram_probe \
+  "rom/Donkey Kong Country (USA) (Rev 2).sfc" \
+  1 0xB9A1DC 0x3000 0 256 package1.ppm
+```
+
+This applies package 1, reads palette data from the local ROM, and renders 256 reconstructed 4bpp tiles beginning at VRAM word `$3000`.
 
 ## Will this become functional?
 
-The architecture supports a functional native port and now reaches actual level-layout and collision records in the ROM. A playable original-compatible build still needs compressed graphics/package decoding, exact level-to-profile selection, full material/neighbor collision side effects, translated actor callbacks and animation, a real PC window backend, audio, saves, menus, and frame-trace comparison against the SNES version.
+The architecture supports a functional native port and now reaches original map, collision, PPU, DMA-package, compressed graphics, and palette data. A playable original-compatible build still needs exact level initialization sequencing, palette-upload aggregation, full background composition, material/neighbor collision side effects, translated actor callbacks and animation, a PC window backend, audio, saves, menus, and frame-trace comparison against the SNES version.
 
 ## Project rules
 
