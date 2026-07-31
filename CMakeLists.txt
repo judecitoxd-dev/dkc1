@@ -13,7 +13,11 @@ add_library(dk1_core
     src/frame_runtime.c
     src/host_callback.c
     src/input.c
+    src/level_diagnostic.c
     src/level_dispatch.c
+    src/level_map.c
+    src/level_metatile.c
+    src/level_terrain_config.c
     src/nmi_dispatch.c
     src/object_executor.c
     src/object_runtime.c
@@ -24,6 +28,7 @@ add_library(dk1_core
     src/reset_state.c
     src/rgba_surface.c
     src/rom_image.c
+    src/rom_terrain.c
     src/snes_graphics.c
     src/state_sequence.c
     src/terrain.c
@@ -43,6 +48,9 @@ target_link_libraries(dk1_pc PRIVATE dk1_core)
 add_executable(dk1_asset_probe src/asset_probe.c)
 target_link_libraries(dk1_asset_probe PRIVATE dk1_core)
 
+add_executable(dk1_level_probe src/level_probe.c)
+target_link_libraries(dk1_level_probe PRIVATE dk1_core)
+
 enable_testing()
 
 foreach(test_name IN ITEMS
@@ -54,7 +62,11 @@ foreach(test_name IN ITEMS
     frame_runtime
     host_callback
     input
+    level_diagnostic
     level_dispatch
+    level_map
+    level_metatile
+    level_terrain_config
     nmi_dispatch
     object_executor
     object_runtime
@@ -64,6 +76,7 @@ foreach(test_name IN ITEMS
     render_queue
     rgba_surface
     rom_image
+    rom_terrain
     snes_graphics
     state_sequence
     terrain

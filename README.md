@@ -4,7 +4,7 @@ This repository is an early clean-room native PC reimplementation workspace for 
 
 ## Current status
 
-**Overall engineering progress: 16%**
+**Overall engineering progress: 21%**
 
 The percentage measures completed, tested reimplementation work. It is not the percentage of ROM bytes copied into C. ROM bytes, original graphics, music, level geometry, and other copyrighted assets are deliberately not committed.
 
@@ -12,17 +12,17 @@ The percentage measures completed, tested reimplementation work. It is not the p
 |---|---:|
 | Cartridge identity / HiROM mapping | 100% |
 | Reset-vector and boot-entry analysis | 80% |
-| Routine discovery and symbol map | 46% |
-| Semantic portable C | 27% |
-| PC rendering / widescreen | 26% |
-| Input / saves / menus / compatibility | 18% |
+| Routine discovery and symbol map | 50% |
+| Semantic portable C | 35% |
+| PC rendering / widescreen | 36% |
+| Input / saves / menus / compatibility | 22% |
 | Audio | 0% |
 
-Current verified analysis covers **725 routine entries**, **21,143 unique instruction addresses**, and **423 confirmed indirect edges**. The C runtime models reset, PPU setup, NMI scheduling, state sequencing, 230 level dispatch records, both object pools, 122 object types, controller input, host callbacks, object execution, camera and parallax, render queues, wrapped tilemaps, exact Rev. 2 ROM validation, HiROM reads, 4bpp graphics and BGR555 palette decoding, the collision-cell format used by `$81:8000`, all 63 valid slope transforms selected by `$81:84C9`, indexed-to-RGBA presentation, and a deterministic validation actor.
+Current verified analysis covers **725 routine entries**, **21,143 unique instruction addresses**, and **423 confirmed indirect edges**. The runtime now reads the 14 terrain/streaming profiles selected by `$81:8C67`, binds actual map and collision data from the local ROM, expands the original 32x32 visual metatiles with SNES flip semantics, expands complete map columns into 8x8 tilemap words, and produces a diagnostic map with reconstructed collision drawn over it.
 
-The executable frame path is functional, and `dk1_asset_probe` can read the user's local ROM and create a PPM preview from user-supplied tile and palette addresses. It still does **not** load a complete original level or provide original-compatible gameplay.
+The executable frame path remains functional. `dk1_asset_probe` previews raw tile/palette ranges and `dk1_level_probe` renders actual level-layout metadata from the user's local ROM. The level probe intentionally uses diagnostic colors for tilemap words because the corresponding compressed graphics and VRAM package formats are not translated yet.
 
-See [`docs/PROGRESS.md`](docs/PROGRESS.md), [`docs/FRAME_RUNTIME.md`](docs/FRAME_RUNTIME.md), [`docs/ROM_ASSETS_TERRAIN.md`](docs/ROM_ASSETS_TERRAIN.md), [`docs/OBJECT_CAMERA.md`](docs/OBJECT_CAMERA.md), and [`docs/OBJECT_SCHEDULER.md`](docs/OBJECT_SCHEDULER.md).
+See [`docs/PROGRESS.md`](docs/PROGRESS.md), [`docs/FRAME_RUNTIME.md`](docs/FRAME_RUNTIME.md), [`docs/ROM_ASSETS_TERRAIN.md`](docs/ROM_ASSETS_TERRAIN.md), and [`docs/LEVEL_MAP_PIPELINE.md`](docs/LEVEL_MAP_PIPELINE.md).
 
 ## ROM required locally
 
@@ -38,19 +38,6 @@ Expected SHA-256:
 628147468c3539283197f58f03b94df49758a332831857481ea9cc31645f0527
 ```
 
-## Analyze the ROM
-
-```bash
-python3 tools/rom_info.py "rom/Donkey Kong Country (USA) (Rev 2).sfc"
-python3 tools/bank_manifest.py "rom/Donkey Kong Country (USA) (Rev 2).sfc" build/banks.json
-python3 tools/cfg65816.py \
-  "rom/Donkey Kong Country (USA) (Rev 2).sfc" build/cfg.json \
-  --indirect-map docs/indirect_targets.json \
-  --max-instructions 500000
-```
-
-The analysis tools export addresses and graph metadata only. Dynamically supplied script and object callbacks remain explicitly unresolved instead of being guessed.
-
 ## Build
 
 ```bash
@@ -60,11 +47,9 @@ ctest --test-dir build --output-on-failure
 ./build/dk1_pc
 ```
 
-There are currently **23 automated tests**: 22 C runtime tests and one Python control-flow test.
+There are currently **28 automated tests**: 27 C runtime tests and one Python control-flow test.
 
 ## Local asset preview
-
-The probe decodes standard uncompressed SNES 4bpp tiles and BGR555 colors at addresses supplied by the user:
 
 ```bash
 ./build/dk1_asset_probe \
@@ -72,13 +57,21 @@ The probe decodes standard uncompressed SNES 4bpp tiles and BGR555 colors at add
   C00000 C00400 preview.ppm
 ```
 
-The addresses are hexadecimal 24-bit SNES addresses. Compressed game resources still require their individual decompression formats to be translated.
+## Level map and collision preview
+
+The supported ROM contains 14 terrain/streaming profiles. This example renders the first eight 32-pixel columns of profile zero:
+
+```bash
+./build/dk1_level_probe \
+  "rom/Donkey Kong Country (USA) (Rev 2).sfc" \
+  0 8 level0-diagnostic.ppm
+```
+
+The output is a structural diagnostic: tilemap entries receive deterministic colors and the reconstructed collision floor is drawn in red. It does not claim to be the final original background image.
 
 ## Will this become functional?
 
-The architecture supports a functional native port: it can read input, execute translated callbacks, query reconstructed collision cells, calculate layer scroll, decode local ROM graphics, and generate host rendering work. Completion is still not automatic or guaranteed. A playable original-compatible build needs level-table decoding, compressed asset formats, shared player/object collision behavior, translated actor callbacks, sprite animation, audio, saves, menus, and frame-trace comparison against the SNES version.
-
-The preview actor exists only to validate terrain and input integration. It is **not** presented as the original Donkey Kong physics.
+The architecture supports a functional native port and now reaches actual level-layout and collision records in the ROM. A playable original-compatible build still needs compressed graphics/package decoding, exact level-to-profile selection, full material/neighbor collision side effects, translated actor callbacks and animation, a real PC window backend, audio, saves, menus, and frame-trace comparison against the SNES version.
 
 ## Project rules
 

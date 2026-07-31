@@ -1,64 +1,60 @@
 # Progress accounting
 
-## Current total: 16%
+## Current total: 21%
 
-The total is milestone-weighted so it cannot be inflated by generating thousands of meaningless C stubs.
+The total is milestone-weighted so it cannot be inflated by generated stubs.
 
 | Milestone | Weight | Done | Contribution |
 |---|---:|---:|---:|
 | Reproducible ROM identification and mapping | 5% | 100% | 5.00% |
-| Function discovery, control-flow graph, symbols | 15% | 46% | 6.90% |
-| Portable gameplay/system C | 45% | 27% | 12.15% |
-| Graphics, camera, tilemaps, widescreen | 15% | 26% | 3.90% |
+| Function discovery, control-flow graph, symbols | 15% | 50% | 7.50% |
+| Portable gameplay/system C | 45% | 35% | 15.75% |
+| Graphics, camera, tilemaps, widescreen | 15% | 36% | 5.40% |
 | Audio | 8% | 0% | 0.00% |
-| Input, saves, menus, compatibility | 7% | 18% | 1.26% |
-| Validation and packaging | 5% | 16% | 0.80% |
+| Input, saves, menus, compatibility | 7% | 22% | 1.54% |
+| Validation and packaging | 5% | 22% | 1.10% |
 
-Weighted pipeline foundation: **30.01%**. The public headline remains a conservative **16%** because no complete original-compatible level is playable yet.
-
-## What counts as converted
-
-A routine or host system counts only when its inputs, outputs, side effects, portable implementation, validation, and runtime connection are present.
+Weighted pipeline foundation: **36.29%**. The public headline remains **21%** because a complete original-compatible level is still not playable.
 
 ## Completed in this five-point stage
 
-### 12% — exact local ROM access
+### 17% — exact terrain/streaming configuration records
 
-- Added file loading and owned-buffer cleanup.
-- Added checked HiROM conversion for mirrored upper-half and full-bank mappings.
-- Added checked 8/16/24-bit reads and bounded copies.
-- Added exact cartridge-header validation for the supported USA Rev. 2 dump, including checksum/complement validation.
+- Translated the 14 split records consumed by `$81:8C67-$81:8CAF`.
+- Each portable record exposes the map pointer, visual metatile bank/base, collision-descriptor pointer, stream destination, collision block count, and terrain callback.
+- Preserved the original zero-bank fallback to bank `$80`.
 
-### 13% — SNES graphics and palette decoding
+### 18% — ROM-backed terrain binding
 
-- Added standard 32-byte planar 4bpp tile decoding.
-- Added multi-tile decoding and direct decoding from a local HiROM address.
-- Added SNES 15-bit color conversion and palette decoding.
-- No original graphics or palettes are committed.
+- Added terrain sampling that reads map cells and block-half descriptors directly from the user's ROM.
+- Reuses the previously translated 63 slope transforms and optional shape flags.
+- Supports floor searches without copying or committing level data.
 
-### 14% — reconstructed terrain-cell format
+### 19% — visual metatile expansion
 
-- Identified `$81:8000` as the object terrain-height entry and `$81:800D-$81:8167` as its main cell query.
-- Reconstructed the column-major, vertically reversed 16-row map layout.
-- Reconstructed 32-pixel block flipping, 16-pixel half selection, descriptor flipping, shape ids, and material flags.
-- Translated all 63 valid height transforms selected by the table at `$81:84C9`, including the curve table at `$81:86E5`.
+- Translated the visual block expansion behavior visible at `$81:8CEF-$81:8DDF`.
+- Expands one 32x32 map cell into sixteen SNES tilemap words.
+- Preserves horizontal and vertical map-cell flips, source order reversal, and tile flip-bit XOR behavior.
+- Corrected the model after real-ROM validation showed `$DB` limits collision descriptors, not visual metatile ids.
 
-### 15% — host RGBA and asset probe
+### 20% — complete map-column expansion
 
-- Added indexed-to-RGBA conversion, clipped rectangle drawing, and binary PPM output.
-- Added `dk1_asset_probe`, which validates the local ROM and renders 16 tiles with a user-selected palette.
-- Verified the complete ROM-to-PPM route locally without committing the generated image.
+- Added top-to-bottom map-cell reads for the column-major, vertically reversed layout.
+- Expands any requested range of 32-pixel columns into a 4x64 8x8-tile strip per column.
+- Keeps tile numbers, palette bits, priority, and flip flags intact for future rendering.
 
-### 16% — collision/input validation scene
+### 21% — local level diagnostic tool
 
-- Added a small host-only actor used to exercise directional input, gravity, jump input, terrain floor lookup, landing, and widescreen-compatible presentation.
-- The actor is explicitly a validation harness, not a claim that original player physics are translated.
-- Expanded automated validation from 18 to 23 tests.
+- Added `dk1_level_probe` for supported local ROMs.
+- Produces a 512-pixel-tall PPM using deterministic colors for actual tilemap words.
+- Overlays the reconstructed collision floor in red.
+- Verified profile zero locally with an eight-column, 256x512 output.
+- Expanded automated validation from 23 to 28 tests.
 
 ## Next measurable targets
 
-- Resolve the level-specific pointers loaded by `$81:8C67-$81:8CAF` and bind an actual level collision map from the local ROM.
-- Translate the full neighboring-cell behavior and material side effects of `$81:800D`.
-- Identify and translate the compression formats used by the initial VRAM upload sources.
-- Translate a common actor callback and its real movement/collision fields.
-- Add a real PC window/input backend and display the first decoded original background layer.
+- Trace the exact level-id to terrain-profile selection path.
+- Translate compressed graphics and VRAM package formats used by the chosen profile.
+- Bind real tile graphics and palettes to the expanded tilemap words.
+- Complete neighboring-cell and material side effects of `$81:800D`.
+- Translate one common original actor callback against the bound terrain view.
