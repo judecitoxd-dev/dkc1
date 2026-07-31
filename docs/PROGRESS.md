@@ -1,51 +1,62 @@
 # Progress accounting
 
-## Current total: 6%
+## Current total: 11%
 
-The total is milestone-weighted so it cannot be inflated by generating thousands
-of meaningless C stubs.
+The total is milestone-weighted so it cannot be inflated by generating thousands of meaningless C stubs.
 
 | Milestone | Weight | Done | Contribution |
 |---|---:|---:|---:|
 | Reproducible ROM identification and mapping | 5% | 100% | 5.00% |
-| Function discovery, control-flow graph, symbols | 15% | 40% | 6.00% |
-| Portable gameplay/system C | 45% | 9% | 4.05% |
-| Graphics, camera, tilemaps, widescreen | 15% | 6% | 0.90% |
+| Function discovery, control-flow graph, symbols | 15% | 42% | 6.30% |
+| Portable gameplay/system C | 45% | 18% | 8.10% |
+| Graphics, camera, tilemaps, widescreen | 15% | 15% | 2.25% |
 | Audio | 8% | 0% | 0.00% |
-| Input, saves, menus, compatibility | 7% | 0% | 0.00% |
-| Validation and packaging | 5% | 5% | 0.25% |
+| Input, saves, menus, compatibility | 7% | 10% | 0.70% |
+| Validation and packaging | 5% | 10% | 0.50% |
 
-Weighted pipeline foundation: **16.20%**. The public headline remains a
-conservative **6%** because the executable still has no playable scene.
+Weighted pipeline foundation: **22.85%**. The public headline is a conservative **11%** because no original-compatible playable level is loaded yet.
 
 ## What counts as converted
 
-A routine counts only when:
+A routine or host system counts only when its inputs, outputs, side effects, portable implementation, validation, and runtime connection are present.
 
-1. Its inputs, outputs, RAM fields, and side effects are documented.
-2. Portable C reproduces its behavior without embedding original machine-code bytes.
-3. A test or trace comparison validates it.
-4. It is connected to the host runtime.
+## Completed in this five-point stage
 
-## Completed in this stage
+### 7% — controller input
 
-- Translated the secondary object loop at `$BF:815E-$BF:8175`.
-- Translated the primary object selection routine at `$BF:8000-$BF:80F4`.
-- Preserved secondary-before-primary frame ordering.
-- Preserved the negative `$1929` primary-delay behavior.
-- Implemented normal, restricted, focus, and special primary passes.
-- Preserved special handling for types `$17`, `$26`, `$31`, and `$45`.
-- Preserved the type `$26` state checks against `$1029` values `0` and `5`.
-- Connected selected type ids to their confirmed bank-`$BF` callbacks.
-- Translated the BG1/BG2 half-speed parallax output at `$80:8973-$80:89B3`.
-- Exposed object pass and PPU scroll diagnostics in the host executable.
-- Expanded automated validation from ten to twelve tests.
+- Translated `$00:C180-$00:C1AF` held/new-press calculation.
+- Translated `$00:C1B2-$00:C20A` active-controller selection and shared-input merging.
+- Added SNES button masks and deterministic tests.
+
+### 8% — host callback registry
+
+- Added a 24-bit source-address to C-function registry.
+- Supports replacement, lookup, execution, missing-callback accounting, and failure accounting.
+- Keeps every translated callback traceable to its original SNES address.
+
+### 9% — object execution
+
+- Connected the translated `$BF:8000` object scheduler to host callbacks.
+- Added portable object positions, velocities, flags, frame numbers, and per-slot invocation contexts.
+- Separately counts executed, untranslated, and failed callbacks.
+
+### 10% — host rendering foundation
+
+- Added camera-relative object projection and viewport culling.
+- Added stable ordering from the confirmed object priority field.
+- Added a wrapped 8x8 indexed tilemap renderer that supports viewports wider than the SNES display without embedding original assets.
+- Expanded PPU scroll support to three confirmed profiles from `$80:8973`, `$80:8CA0`, and `$80:8DF0`.
+
+### 11% — integrated native frame
+
+- One host frame now updates input, selects a controller, runs original object scheduling, invokes translated callbacks, computes PPU scroll, and builds the visible render queue.
+- The diagnostic executable runs this path with a translated C callback.
+- Expanded automated validation from 12 to 18 tests.
 
 ## Next measurable targets
 
-- Translate the first shared object callbacks reached by the most common type records.
-- Add a host callback registry that replaces translated SNES callback addresses with C functions.
-- Identify collision and terrain-query fields used by `$80:9738` and related frame paths.
-- Determine tilemap streaming coordinates and VRAM destinations derived from camera movement.
-- Render the first static tilemap layer before enabling gameplay movement.
-- Continue classifying dynamic script callback sites without guessing targets.
+- Translate shared collision and terrain-query routines used by player and object callbacks.
+- Decode level tilemap layouts from the user's local ROM at runtime without committing assets.
+- Translate enough object callbacks to animate a controllable actor.
+- Add a real PC window/input backend and indexed-to-RGBA presentation.
+- Validate frame traces against the SNES build before calling the first scene playable.

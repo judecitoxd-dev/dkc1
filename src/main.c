@@ -3,13 +3,21 @@
 #include "dk1/boot_memory.h"
 #include "dk1/boot_video.h"
 #include "dk1/camera.h"
+#include "dk1/frame_runtime.h"
+#include "dk1/host_callback.h"
+#include "dk1/input.h"
 #include "dk1/level_dispatch.h"
 #include "dk1/nmi_dispatch.h"
 #include "dk1/object_runtime.h"
-#include "dk1/object_scheduler.h"
-#include "dk1/ppu_scroll.h"
 #include "dk1/reset_state.h"
 #include "dk1/state_sequence.h"
+
+static bool diagnostic_object_move(Dk1HostCallbackContext *context) {
+    Dk1ObjectWorld *world = (Dk1ObjectWorld *)context->runtime;
+    if (world == NULL || context->object_slot >= DK1_OBJECT_SLOT_COUNT) return false;
+    world->world_x[context->object_slot] += 1;
+    return true;
+}
 
 int main(void) {
     const Dk1BootState state = dk1_boot_state_after_entry();
@@ -21,9 +29,10 @@ int main(void) {
     Dk1CameraState camera = {-1, -1, 1u, 1u};
     Dk1LevelDispatchEntry level_dispatch = {0};
     Dk1ObjectTypeDispatch object_type = {0};
-    Dk1ObjectFrameState object_frame = {0};
-    Dk1ObjectFrameResult object_result;
-    Dk1PpuScrollState scroll;
+    Dk1ObjectTypeDispatch host_type = {0};
+    Dk1HostCallbackRegistry callbacks;
+    Dk1FrameRuntime frame = {0};
+    Dk1FrameOutput frame_output;
     size_t upload_count = 0;
     size_t state_count = 0;
 
@@ -33,9 +42,29 @@ int main(void) {
     (void)dk1_object_type_dispatch_get(0u, &object_type);
     dk1_camera_clamp_original(&camera, camera_bounds, 0u);
 
-    object_frame.type_id[1] = 1u;
-    object_result = dk1_object_run_frame(&object_frame, NULL, NULL);
-    scroll = dk1_ppu_scroll_half_parallax(0x0123u, 0x00F1u);
+    dk1_host_callback_registry_init(&callbacks);
+    frame.viewport.width = 384u;
+    frame.viewport.height = 224u;
+    frame.viewport.margin = 16;
+    frame.objects.scheduler.type_id[1] = 1u;
+    frame.objects.world_x[1] = 32;
+    frame.objects.world_y[1] = 64;
+    if (dk1_object_type_dispatch_get(1u, &host_type)) {
+        const uint32_t host_pc = ((uint32_t)DK1_OBJECT_CALLBACK_BANK << 16u) |
+                                 host_type.callback_address_bf;
+        (void)dk1_host_callback_register(
+            &callbacks, host_pc, diagnostic_object_move, NULL
+        );
+    }
+    frame_output = dk1_frame_runtime_step(
+        &frame,
+        &callbacks,
+        DK1_BUTTON_RIGHT,
+        0u,
+        0u,
+        0u,
+        0u
+    );
 
     puts("dk1 clean-room PC workspace");
     printf("boot model: native=%s irq_disabled=%s fastrom=%s sp=$%04X\n",
@@ -69,20 +98,18 @@ int main(void) {
            (unsigned)dk1_object_type_count(),
            (unsigned)DK1_OBJECT_CALLBACK_BANK,
            (unsigned)object_type.callback_address_bf);
-    printf("object scheduler: secondary=%u primary=%u post_update=%s\n",
-           (unsigned)object_result.secondary_callbacks,
-           (unsigned)object_result.primary_callbacks,
-           object_result.post_update_requested ? "yes" : "no");
     printf("camera model: origin=(%d,%d) SNES viewport=%ux%u widescreen-ready=yes\n",
            (int)camera.x,
            (int)camera.y,
            (unsigned)DK1_SNES_VIEWPORT_WIDTH,
            (unsigned)DK1_SNES_VIEWPORT_HEIGHT);
-    printf("parallax model: BG1=(%u,%u) BG2=(%u,%u)\n",
-           (unsigned)scroll.bg1_x,
-           (unsigned)scroll.bg1_y,
-           (unsigned)scroll.bg2_x,
-           (unsigned)scroll.bg2_y);
-    puts("gameplay status: runtime foundations implemented; playable scene not yet implemented");
+    printf("native frame: input_right=%s callbacks=%u missing=%u visible=%u viewport=%ux%u\n",
+           dk1_input_pressed(&frame.input, DK1_BUTTON_RIGHT) ? "yes" : "no",
+           (unsigned)frame_output.objects.executed_callbacks,
+           (unsigned)frame_output.objects.missing_callbacks,
+           (unsigned)frame_output.render_queue.count,
+           (unsigned)frame.viewport.width,
+           (unsigned)frame.viewport.height);
+    puts("gameplay status: native frame path runs; original-compatible playable scene not yet implemented");
     return 0;
 }

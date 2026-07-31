@@ -10,13 +10,19 @@ add_library(dk1_core
     src/boot_memory.c
     src/boot_video.c
     src/camera.c
+    src/frame_runtime.c
+    src/host_callback.c
+    src/input.c
     src/level_dispatch.c
     src/nmi_dispatch.c
+    src/object_executor.c
     src/object_runtime.c
     src/object_scheduler.c
     src/ppu_scroll.c
+    src/render_queue.c
     src/reset_state.c
     src/state_sequence.c
+    src/tilemap_renderer.c
 )
 target_include_directories(dk1_core PUBLIC include)
 
@@ -37,12 +43,18 @@ foreach(test_name IN ITEMS
     boot_control
     boot_video
     camera
+    frame_runtime
+    host_callback
+    input
     level_dispatch
     nmi_dispatch
+    object_executor
     object_runtime
     object_scheduler
     ppu_scroll
+    render_queue
     state_sequence
+    tilemap_renderer
 )
     add_executable(test_${test_name} tests/test_${test_name}.c)
     target_link_libraries(test_${test_name} PRIVATE dk1_core)

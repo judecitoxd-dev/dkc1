@@ -11,76 +11,42 @@ The user-provided dump was inspected locally; the ROM itself is not stored here.
 - SRAM size code: `0x01`
 - Region code: `0x01`
 - Internal version: `2`
-- Header offset: `0x00FFC0`
 - Emulation reset vector: `$8000`
 - Native NMI vector: `$A976`
 - Native IRQ vector: `$A99E`
-- Initial CPU entry: `$00:8000`
 - SHA-256: `628147468c3539283197f58f03b94df49758a332831857481ea9cc31645f0527`
 
-## Early boot behavior confirmed
+## Confirmed systems represented in portable C
 
-The reset entry transitions the 65C816 into native mode, disables maskable
-interrupts, establishes direct-page/data-bank/stack state, enables FastROM, and
-enters the first memory-initialization routine.
+- `$00:A8E6` and `$00:A920`: full 128 KiB WRAM clear.
+- `$00:A8C2`: 64 KiB VRAM clear.
+- `$80:A97A`: NMI callback dispatch through `$001C`.
+- `$80:80A9`: main per-frame scheduler callback.
+- `$0508/$050A/$050C`: current state callback, sequence table, and index.
+- `$80:9723`: level frame dispatch for 230 level/location identifiers.
+- `$BF:8000-$BF:80F4`: primary object scheduling policy.
+- `$BF:815E-$BF:8175`: secondary object pool update.
+- `$BF:817C`: 122 object-type callback/attribute records.
+- `$088B/$0895`: camera X/Y origin.
+- `$1B23/$1B25`: horizontal camera limits.
 
-Confirmed DMA behavior represented semantically in C:
+## Controller input confirmed
 
-- `$00:A8E6` clears all 128 KiB of WRAM with two fixed-source 64 KiB DMA passes.
-- `$00:A8C2` clears 64 KiB of VRAM with one fixed-source DMA pass.
-- `$00:A920` is the callable WRAM-bank-1 clear path used during later reset.
+`$00:C180-$00:C1AF` reads `$4218/$421A` and stores:
 
-Confirmed scheduler and boot-state behavior:
+- `$0500/$0502`: held masks for controllers 1 and 2.
+- `$0504/$0506`: newly pressed masks using `(new ^ old) & new`.
 
-- `$80:A97A` dispatches NMI through the 16-bit pointer at `$001C`.
-- `$80:80A9` is the main per-frame NMI callback and resets SP to `$01FF`.
-- `$0508` stores the active state callback.
-- `$050A` stores the state-sequence table base.
-- `$050C` stores the sequence element index.
-- `$00:BA43-$00:BA8D` establishes initial control variables and request IDs.
-- `$00:BA91-$00:BAEF` establishes the first verified PPU configuration and VRAM loops.
+`$00:C1B2-$00:C20A` selects the active held/pressed values at `$050E/$0510` and merges both controllers in shared-input modes.
 
-## Level and object dispatch behavior confirmed
+## Scroll profiles confirmed
 
-- `$003E` is used as a 230-value level/location dispatch identifier.
-- `$80:C56C` stores paired bank-$80 callbacks selected by `$80:9723`.
-- `$BF:FDC8` stores bank-$80 entry callbacks selected by `$80:86E0`.
-- `$B9:801E`, `$B9:81EA`, and `$B9:83B6` are parallel 230-word dispatch tables.
-- `$BF:817C` is a 122-entry object-type record table with a handler word and metadata word.
-- `$130D/$1341` form a dynamic 24-bit per-object callback.
-- `$BF:8000` updates primary slots `1-25`; `$BF:815E` updates secondary slots `26-57`.
-- `$0D45` is the parallel object type/active array.
-- `$0B19/$0BC1` are object world X/Y arrays.
-- `$116D` is the object script pointer array.
-- `$81:D931` and `$BE:812E` dispatch the address in `$1341,X` using the low byte of `$130D,X` as the bank.
-- `$BE:8197` is the confirmed script operation that writes the callback address and bank.
+- `$80:8973-$80:89B3`: BG1 follows camera; BG2 uses half X/Y speed.
+- `$80:8CA0-$80:8CEA`: BG2 uses half X and quarter Y speed; BG3 Y comes from level state.
+- `$80:8DF0-$80:8E42`: BG2 X uses half speed and BG3 X uses 1.5x camera speed.
 
-## Object frame behavior confirmed
+## Host runtime boundary
 
-- `$BF:815E-$BF:8175` visits every active secondary slot before primary selection.
-- `$BF:8000-$BF:80F4` selects the primary update policy from `$1929`.
-- A negative `$1929` increments toward zero and skips only the primary/post-update portion.
-- The restricted path preserves special cases for type ids `$17`, `$26`, and `$31`.
-- Type `$26` is skipped when its `$1029` state is `0` or `5`.
-- The focus path updates the offset in `$1923` plus every type `$45`.
-- The special path excludes the focus object and tests type attribute bit `$0080`.
-- `$0535` decrements from `2` to `1` after a completed primary pass.
+SNES callback addresses remain source identities in a host registry. Translated C callbacks receive frame and object context. Untranslated callbacks remain visible as missing rather than being silently emulated or guessed. The host render path projects object coordinates relative to camera, orders by the confirmed priority bits, and can draw wrapped synthetic/indexed tilemaps at widescreen dimensions.
 
-## Camera behavior confirmed
-
-- `$088B` is camera X and `$0895` is camera Y.
-- Rendering paths subtract those values from object world positions.
-- `$1B23/$1B25` are the horizontal camera minimum and maximum.
-- `$80:9C9D-$80:9CDD` clamps X to those limits and normally clamps Y to `0..$0200`.
-- Mode `$0009` bypasses the upper Y clamp.
-- `$0889/$0897` are auxiliary camera values cleared whenever the corresponding axis is clamped.
-
-## Scroll behavior confirmed
-
-`$80:8973-$80:89B3` writes one level scroll profile:
-
-- BG1 X/Y equals camera `$088B/$0895`.
-- BG2 X/Y equals camera divided by two.
-- BG3 vertical scroll is zero.
-
-Addresses and behavior are recorded; no original ROM or asset bytes are committed.
+No original ROM bytes, graphics, music, or level geometry are committed.
