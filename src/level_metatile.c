@@ -11,6 +11,10 @@ bool dk1_level_metatile_row(const Dk1RomImage *rom,
     const uint8_t source_row = vertical_flip ? (uint8_t)(3u - output_row) : output_row;
     uint8_t column = 0u;
     if (rom == NULL || config == NULL || output == NULL || output_row >= 4u) return false;
+    if (block == 0u) {
+        for (column = 0u; column < 4u; ++column) output[column] = 0u;
+        return true;
+    }
     for (column = 0u; column < 4u; ++column) {
         const uint8_t source_column = horizontal_flip ? (uint8_t)(3u - column) : column;
         const uint16_t address = (uint16_t)(config->visual_block_base +
