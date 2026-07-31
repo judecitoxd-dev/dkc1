@@ -10,6 +10,7 @@ add_library(dk1_core
     src/boot_memory.c
     src/boot_video.c
     src/camera.c
+    src/dkc_decompress.c
     src/frame_runtime.c
     src/host_callback.c
     src/input.c
@@ -17,11 +18,13 @@ add_library(dk1_core
     src/level_dispatch.c
     src/level_map.c
     src/level_metatile.c
+    src/level_profile_map.c
     src/level_terrain_config.c
     src/nmi_dispatch.c
     src/object_executor.c
     src/object_runtime.c
     src/object_scheduler.c
+    src/ppu_preset.c
     src/ppu_scroll.c
     src/preview_actor.c
     src/render_queue.c
@@ -33,6 +36,8 @@ add_library(dk1_core
     src/state_sequence.c
     src/terrain.c
     src/tilemap_renderer.c
+    src/vram_image.c
+    src/vram_package.c
 )
 target_include_directories(dk1_core PUBLIC include)
 
@@ -51,6 +56,9 @@ target_link_libraries(dk1_asset_probe PRIVATE dk1_core)
 add_executable(dk1_level_probe src/level_probe.c)
 target_link_libraries(dk1_level_probe PRIVATE dk1_core)
 
+add_executable(dk1_vram_probe src/vram_probe.c)
+target_link_libraries(dk1_vram_probe PRIVATE dk1_core)
+
 enable_testing()
 
 foreach(test_name IN ITEMS
@@ -59,6 +67,7 @@ foreach(test_name IN ITEMS
     boot_control
     boot_video
     camera
+    dkc_decompress
     frame_runtime
     host_callback
     input
@@ -66,11 +75,13 @@ foreach(test_name IN ITEMS
     level_dispatch
     level_map
     level_metatile
+    level_profile_map
     level_terrain_config
     nmi_dispatch
     object_executor
     object_runtime
     object_scheduler
+    ppu_preset
     ppu_scroll
     preview_actor
     render_queue
@@ -81,6 +92,8 @@ foreach(test_name IN ITEMS
     state_sequence
     terrain
     tilemap_renderer
+    vram_image
+    vram_package
 )
     add_executable(test_${test_name} tests/test_${test_name}.c)
     target_link_libraries(test_${test_name} PRIVATE dk1_core)
