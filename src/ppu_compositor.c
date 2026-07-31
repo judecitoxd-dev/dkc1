@@ -1,0 +1,4 @@
+#include "dk1/ppu_compositor.h"
+#include <stdlib.h>
+#include <string.h>
+bool dk1_ppu_compose_mode1(const Dk1SceneMemory*s,uint16_t b2x,uint16_t b2y,uint16_t b3x,uint16_t b3y,Dk1RgbaSurface out){Dk1PpuBgLayout l;Dk1Rgba8 *tmp;Dk1RgbaSurface t;int bg;if(!s||!out.pixels)return false;tmp=calloc(out.width*out.height,sizeof(*tmp));if(!tmp)return false;t.pixels=tmp;t.width=out.width;t.height=out.height;t.stride=out.width;for(size_t i=0;i<out.width*out.height;i++)out.pixels[i]=dk1_snes_bgr555_to_rgba(s->cgram.colors[0],false);for(bg=3;bg>=2;bg--){uint16_t x=bg==2?b2x:b3x,y=bg==2?b2y:b3y;memset(tmp,0,out.width*out.height*sizeof(*tmp));if(dk1_ppu_bg_layout(&s->ppu,(uint8_t)bg,&l)&&l.main_enabled&&dk1_ppu_render_vram_bg(&s->vram,&s->cgram,&l,x,y,t,true)){size_t i;for(i=0;i<out.width*out.height;i++)if(tmp[i].a)out.pixels[i]=tmp[i];}}free(tmp);return true;}
