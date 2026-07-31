@@ -5,7 +5,7 @@ game identified by the user-provided cartridge dump.
 
 ## Current status
 
-**Overall engineering progress: 5%**
+**Overall engineering progress: 6%**
 
 The percentage measures completed, tested reimplementation work. It is not the
 percentage of ROM bytes copied into C. ROM bytes, original graphics, music,
@@ -16,26 +16,28 @@ level geometry, and other copyrighted assets are deliberately not committed.
 | Cartridge identity / HiROM mapping | 100% |
 | Reset-vector and boot-entry analysis | 80% |
 | Routine discovery and symbol map | 40% |
-| Semantic portable C | 7% |
-| PC rendering / widescreen | 4% |
+| Semantic portable C | 9% |
+| PC rendering / widescreen | 6% |
 | Audio / input / save compatibility | 0% |
 
 Current verified analysis covers **725 routine entries**, **21,143 unique
 instruction addresses**, and **423 confirmed indirect edges**. The C runtime now
 models reset state, WRAM/VRAM clearing, early boot control, initial PPU setup,
 the NMI scheduler, state sequencing, all 230 level dispatch records, the two
-object pools, 122 object-type records, dynamic object callback composition, and
-the original camera clamp. It is not yet playable.
+object pools, 122 object-type records, the complete primary/secondary object
+selection policy, dynamic object callback composition, the original camera
+clamp, and one confirmed BG1/BG2 parallax transform. It is not yet playable.
 
-The camera origin is now separated from host viewport dimensions. That is the
-first concrete widescreen interface: the simulation can preserve original
-camera behavior while a PC renderer requests a wider visible rectangle.
+The camera origin and PPU scroll outputs are separated from host viewport
+dimensions. The simulation can preserve original camera and parallax behavior
+while a PC renderer requests a wider visible rectangle.
 
 See [`docs/PROGRESS.md`](docs/PROGRESS.md),
 [`docs/NMI_SCHEDULER.md`](docs/NMI_SCHEDULER.md),
 [`docs/BOOT_VIDEO.md`](docs/BOOT_VIDEO.md),
-[`docs/LEVEL_DISPATCH.md`](docs/LEVEL_DISPATCH.md), and
-[`docs/OBJECT_CAMERA.md`](docs/OBJECT_CAMERA.md).
+[`docs/LEVEL_DISPATCH.md`](docs/LEVEL_DISPATCH.md),
+[`docs/OBJECT_CAMERA.md`](docs/OBJECT_CAMERA.md), and
+[`docs/OBJECT_SCHEDULER.md`](docs/OBJECT_SCHEDULER.md).
 
 ## ROM required locally
 
@@ -76,15 +78,16 @@ ctest --test-dir build --output-on-failure
 ./build/dk1_pc
 ```
 
-There are currently ten automated tests.
+There are currently twelve automated tests.
 
 ## Will this become functional?
 
 The architecture is suitable for a functional native PC reimplementation, but
-completion is not automatic or guaranteed. A playable build still requires the
-translated frame callbacks, object behaviors, collision, level/tilemap loading,
-rendering, audio, input, saves, menus, and trace validation. Progress only moves
-when those systems are implemented and tested; generated C stubs do not count.
+completion is not automatic or guaranteed. The object frame scheduler can now
+select the same classes of objects and callback addresses as the original
+routine, but the individual callback behaviors still need C translations.
+A playable build also requires collision, level/tilemap loading, rendering,
+audio, input, saves, menus, and trace validation.
 
 ## Project rules
 
