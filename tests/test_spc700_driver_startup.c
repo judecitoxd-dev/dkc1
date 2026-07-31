@@ -18,12 +18,13 @@ int main(void) {
     assert(startup.ram[0x05E8u] == 0x00u && startup.ram[0x05ECu] == 0x20u);
     assert(startup.ram[0x2380u] == 0xB4u && startup.ram[0x2381u] == 0x2Fu);
     assert(dk1_spc700_driver_trace_entry(&startup, 0x5Au, 64u, &trace));
-    assert(trace.instructions == 11u);
-    assert(trace.pc == 0x1076u && trace.unsupported_pc == 0x1076u);
-    assert(trace.unsupported_opcode == 0xBEu && trace.stop == DK1_SPC_TRACE_UNSUPPORTED_OPCODE);
-    assert(trace.a == 0x5Au && trace.x == 0xFFu && trace.sp == 0xFDu);
+    assert(trace.instructions == 13u);
+    assert(trace.stop == DK1_SPC_TRACE_IPL_BRK_HANDOFF);
+    assert(trace.pc == 0xFFC0u && trace.brk_vector == 0xFFC0u);
+    assert(trace.a == 0xF4u && trace.x == 0xFFu && trace.sp == 0xFAu);
     assert(startup.ram[0x04DEu] == 0x5Au && startup.ram[0x00F4u] == 0x5Au);
     assert(startup.ram[0x01FFu] == 0x05u && startup.ram[0x01FEu] == 0xFAu);
+    assert(startup.ram[0x01FDu] == 0x10u && startup.ram[0x01FCu] == 0x78u);
     dk1_rom_free(&owned);
     return 0;
 }

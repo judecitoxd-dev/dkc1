@@ -15,7 +15,38 @@ static void update_marker(Dk1SoftwareFrontend *frontend) {
     sprite.large = false;
     sprite.width = 8u;
     sprite.height = 8u;
+    dk1_oam_init(&frontend->oam);
     (void)dk1_oam_encode_sprite(&frontend->oam, frontend->obsel, 0u, &sprite);
+    frontend->player_visual_ready = false;
+}
+
+static bool update_player_visual(const Dk1RomImage *rom,
+                                 const Dk1SceneMemory *scene,
+                                 Dk1SoftwareFrontend *frontend) {
+    Dk1ObjectScreenTransform transform;
+    Dk1ObjectFrameOamStyle style;
+    if (rom == NULL) {
+        update_marker(frontend);
+        return true;
+    }
+    transform.world_x = (int16_t)(frontend->runtime.view.camera_x + frontend->marker_x);
+    transform.world_y = (int16_t)(224 - frontend->runtime.view.camera_y - frontend->marker_y);
+    transform.camera_x = (int16_t)frontend->runtime.view.camera_x;
+    transform.vertical_origin = 224;
+    transform.vertical_scroll = (int16_t)frontend->runtime.view.camera_y;
+    transform.vertical_offset = 0;
+    transform.object_flags = 0u;
+    style.base_tile_number = frontend->player_tile_base;
+    style.palette = frontend->marker_palette;
+    style.priority = 3u;
+    style.horizontal_flip = false;
+    style.vertical_flip = false;
+    frontend->player_visual_ready = dk1_player_visual_build(
+        rom, &scene->vram, frontend->player_frame, transform, style,
+        frontend->obsel, &frontend->oam, &frontend->player_vram,
+        &frontend->player_visual);
+    if (!frontend->player_visual_ready) update_marker(frontend);
+    return true;
 }
 
 bool dk1_software_frontend_init(const Dk1SceneMemory *scene,
@@ -31,9 +62,11 @@ bool dk1_software_frontend_init(const Dk1SceneMemory *scene,
     frontend->marker_y = (int16_t)(height / 2u);
     frontend->marker_tile = 0u;
     frontend->marker_palette = 0u;
+    frontend->player_frame = 0x0330u;
+    frontend->player_tile_base = 0x0040u;
+    frontend->player_vram = scene->vram;
     (void)dk1_ppu_preset_register(&scene->ppu, 0x2101u, &obsel);
     frontend->obsel = obsel;
-    dk1_oam_init(&frontend->oam);
     update_marker(frontend);
     if (!dk1_scene_view_clamp(scene, &frontend->runtime.view)) return false;
     return dk1_dynamic_stream_update(frontend->runtime.view, 128u,
@@ -55,13 +88,13 @@ bool dk1_software_frontend_step(const Dk1SceneMemory *scene, uint16_t held,
     if (held & DK1_HOST_BUTTON_R) x += 2;
     if (held & DK1_HOST_BUTTON_Y) y -= 2;
     if (held & DK1_HOST_BUTTON_B) y += 2;
-    if (x < -8) x = -8;
-    if (x > (int32_t)frontend->runtime.view.width) x = frontend->runtime.view.width;
-    if (y < 0) y = 0;
+    if (x < -32) x = -32;
+    if (x > (int32_t)frontend->runtime.view.width + 32) x = frontend->runtime.view.width + 32;
+    if (y < -32) y = -32;
     if (y > 255) y = 255;
     frontend->marker_x = (int16_t)x;
     frontend->marker_y = (int16_t)y;
-    update_marker(frontend);
+    frontend->player_visual_ready = false;
     return true;
 }
 
@@ -71,6 +104,7 @@ bool dk1_software_frontend_render(const Dk1RomImage *rom,
                                   Dk1RgbaSurface destination) {
     Dk1Rgba8 *stream_pixels = NULL;
     Dk1RgbaSurface stream;
+    const Dk1VramImage *sprite_vram;
     uint8_t inidisp = 15u;
     bool streamed = false;
     size_t i, count;
@@ -90,7 +124,9 @@ bool dk1_software_frontend_render(const Dk1RomImage *rom,
             free(stream_pixels);
         }
     }
-    if (!dk1_oam_render(&frontend->oam, frontend->obsel, &scene->vram, &scene->cgram,
+    if (!update_player_visual(rom, scene, frontend)) return false;
+    sprite_vram = frontend->player_visual_ready ? &frontend->player_vram : &scene->vram;
+    if (!dk1_oam_render(&frontend->oam, frontend->obsel, sprite_vram, &scene->cgram,
                         0u, 3u, destination)) return false;
     if (dk1_ppu_preset_register(&scene->ppu, 0x2100u, &inidisp)) inidisp &= 0x0Fu;
     count = destination.width * destination.height;
@@ -116,5 +152,7 @@ uint64_t dk1_software_frontend_signature(const Dk1SoftwareFrontend *frontend) {
     hash = dk1_fnv1a64(&frontend->stream, sizeof(frontend->stream), hash);
     hash = dk1_fnv1a64(&frontend->marker_x, sizeof(frontend->marker_x), hash);
     hash = dk1_fnv1a64(&frontend->marker_y, sizeof(frontend->marker_y), hash);
+    hash = dk1_fnv1a64(&frontend->player_frame, sizeof(frontend->player_frame), hash);
+    hash = dk1_fnv1a64(&frontend->player_visual, sizeof(frontend->player_visual), hash);
     return dk1_fnv1a64(&frontend->oam, sizeof(frontend->oam), hash);
 }

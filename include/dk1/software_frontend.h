@@ -6,6 +6,7 @@
 #include "dk1/host_input.h"
 #include "dk1/dynamic_stream.h"
 #include "dk1/oam_image.h"
+#include "dk1/player_visual_runtime.h"
 #include "dk1/ppu_compositor.h"
 #include "dk1/scene_runtime.h"
 
@@ -13,12 +14,17 @@ typedef struct Dk1SoftwareFrontend {
     Dk1SceneRuntime runtime;
     Dk1HostInputState input;
     Dk1OamImage oam;
+    Dk1VramImage player_vram;
+    Dk1PlayerVisualStats player_visual;
     Dk1DynamicStreamState stream;
     uint8_t obsel;
     int16_t marker_x;
     int16_t marker_y;
     uint16_t marker_tile;
     uint8_t marker_palette;
+    uint16_t player_frame;
+    uint16_t player_tile_base;
+    bool player_visual_ready;
 } Dk1SoftwareFrontend;
 
 bool dk1_software_frontend_init(const Dk1SceneMemory *scene,

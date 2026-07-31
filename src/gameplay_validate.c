@@ -8,6 +8,7 @@
 #include "dk1/object_frame_layout.h"
 #include "dk1/object_screen_oam.h"
 #include "dk1/player_coverage.h"
+#include "dk1/player_visual_runtime.h"
 #include "dk1/player_dispatch.h"
 #include "dk1/rom_image.h"
 #include "dk1/spc700_bootstrap.h"
@@ -28,6 +29,9 @@ int main(int argc, char **argv) {
     Dk1ObjectScreenTransform transform = {100, 80, 20, 224, 0, 0, 0};
     Dk1ObjectScreenOamStats screen_stats = {0};
     Dk1ObjectFrameDmaStats frame_dma = {0};
+    Dk1PlayerVisualStats visual_stats = {0};
+    Dk1VramImage visual_base = {{0}}, visual_vram;
+    Dk1OamImage visual_oam;
     Dk1NmiVramDmaQueue dma_queue;
     Dk1OamImage oam;
     uint16_t state;
@@ -79,6 +83,11 @@ int main(int argc, char **argv) {
                                            &dma_queue, &frame_dma) ||
             frame_dma.records != 2u || frame_dma.bytes != 576u)
             ++invalid;
+        if (!dk1_player_visual_build(&rom, &visual_base, animation.frame, transform,
+                                     style, 0u, &visual_oam, &visual_vram, &visual_stats) ||
+            visual_stats.pieces != 12u || visual_stats.dma_records != 2u ||
+            visual_stats.dma_bytes != 576u)
+            ++invalid;
     }
 
     dk1_spc700_bootstrap_init(&spc, &apu);
@@ -89,8 +98,9 @@ int main(int argc, char **argv) {
 
     if (!dk1_spc700_driver_startup_load(&rom, &driver) ||
         !dk1_spc700_driver_trace_entry(&driver, 0x5Au, 64u, &driver_trace) ||
-        driver_trace.instructions != 11u || driver_trace.unsupported_pc != 0x1076u ||
-        driver_trace.unsupported_opcode != 0xBEu)
+        driver_trace.instructions != 13u ||
+        driver_trace.stop != DK1_SPC_TRACE_IPL_BRK_HANDOFF ||
+        driver_trace.pc != 0xFFC0u || driver_trace.brk_vector != 0xFFC0u)
         ++invalid;
 
     if (!dk1_apu_driver_catalog_validate(&rom, &apu_sources, &apu_bytes)) ++invalid;
@@ -101,9 +111,9 @@ int main(int argc, char **argv) {
     printf("player_states=%u planned=%u local=%u invalid=%u "
            "translation=%016llX apu_boot=%016llX animation=%04X "
            "frame_pieces=%u frame_layout=%016llX screen_oam=%u "
-           "frame_dma_records=%u frame_dma_bytes=%u spc_steps=%llu "
+           "frame_dma_records=%u frame_dma_bytes=%u visual_pieces=%u visual_dma=%u spc_steps=%llu "
            "driver_code=%016llX driver_data=%016llX driver_ram=%016llX "
-           "driver_steps=%llu driver_pc=%04X driver_stop=%02X "
+           "driver_steps=%llu driver_pc=%04X driver_stop=%u driver_vector=%04X "
            "apu_sources=%u apu_bytes=%u apu_catalog=%016llX apu_payload=%016llX\n",
            (unsigned)DK1_PLAYER_STATE_COUNT,
            (unsigned)dk1_player_planned_state_count(),
@@ -117,13 +127,16 @@ int main(int argc, char **argv) {
            (unsigned)screen_stats.written,
            (unsigned)frame_dma.records,
            (unsigned)frame_dma.bytes,
+           (unsigned)visual_stats.pieces,
+           (unsigned)visual_stats.dma_bytes,
            (unsigned long long)spc.instructions,
            (unsigned long long)driver.code_signature,
            (unsigned long long)driver.data_signature,
            (unsigned long long)driver.ram_signature,
            (unsigned long long)driver_trace.instructions,
-           driver_trace.unsupported_pc,
-           driver_trace.unsupported_opcode,
+           (unsigned)driver_trace.pc,
+           (unsigned)driver_trace.stop,
+           (unsigned)driver_trace.brk_vector,
            (unsigned)apu_sources,
            (unsigned)apu_bytes,
            (unsigned long long)catalog_signature,

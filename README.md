@@ -4,7 +4,7 @@ This repository is a clean-room native PC reimplementation of the SNES game iden
 
 ## Current status
 
-**Overall engineering progress: 90%**
+**Overall engineering progress: 94%**
 
 The percentage measures completed and tested engineering systems. It is not the percentage of gameplay currently playable and is not based on ROM bytes converted.
 
@@ -12,38 +12,41 @@ The percentage measures completed and tested engineering systems. It is not the 
 |---|---:|
 | Cartridge identity / HiROM mapping | 100% |
 | Reset-vector and boot-entry analysis | 80% |
-| Routine discovery and symbol map | 88% |
-| Semantic portable C | 99% |
-| PC rendering / widescreen | 97% |
-| Input / saves / menus / compatibility | 66% |
-| Audio loading / driver path | 60% |
+| Routine discovery and symbol map | 92% |
+| Semantic portable C | 100% state coverage |
+| PC rendering / widescreen | 99% infrastructure |
+| Input / saves / menus / compatibility | 70% |
+| Audio loading / driver path | 70% |
 
-The runtime reconstructs and renders all 230 level/location scenes. The original 87-entry player dispatcher now has **79 states with executable local semantics** and three additional exact plans. Only states 2–5 and 10 remain untranslated; plans 0, 1 and 20 still depend on shared helpers that are not complete.
+Every entry in the original 87-state player dispatcher is now classified: **84 states have executable local C semantics** and states 0, 1 and 20 retain exact call plans. The final five large handlers—states 2–5 and 10—now preserve their local partner-distance checks, synchronized launch/reset behavior, follow velocity, facing requests, timers, animation selection and state transitions. Shared external helpers are still surfaced explicitly and are not counted as completed gameplay.
 
-The original frame renderer is now connected to world position, camera position, vertical scroll and object flip flags. Frame `$0330` produces its 12 authentic pieces at screen coordinates and can schedule the exact two graphics transfers consumed by the NMI DMA queue: 448 bytes followed by 128 bytes.
+The software frontend no longer has to render only the diagnostic single-tile marker. When a supported ROM is supplied, it builds frame `$0330` through the original frame table, converts its 12 pieces to screen OAM, schedules and executes the authentic 576 bytes of frame graphics DMA into a private VRAM image, then renders that OAM. If a scene uses an incompatible OBJ layout or no ROM is supplied, it safely falls back to the marker.
 
-The initial full SPC700 driver image is reconstructed in SPC RAM. The startup routine copies 3,451 bytes from `$8A:A36E` to `$04E8` and a 3,622-byte driver-data block from `$C9:2D95` to `$2380`. A bounded driver tracer executes the first 11 instructions from `$05E8`, mirrors APUIO0 into `$04DE`, initializes X/SP and follows the real call to `$1076`. It stops explicitly at unsupported opcode `$BE`; music/DSP output is not yet implemented.
+The bounded SPC700 startup trace now implements `DAS A` and the following `BRK`. With initial APUIO0 `$5A`, the driver reaches `$1076`, decimal-adjusts A to `$F4`, pushes the BRK return/PSW and hands control to the IPL vector `$FFC0` after 13 instructions. IPL-ROM execution and DSP synthesis are not included.
 
 Current supported-ROM validation targets:
 
 ```text
-player_states=87 planned=82 local=79 invalid=0
-translation=86F04E4A511B0A0B
+player_states=87 planned=87 local=84 invalid=0
+translation=3267767EC866CDAD
 animation=0330 frame_pieces=12 frame_layout=9A2E475D9D1AB40F
 screen_oam=12 frame_dma_records=2 frame_dma_bytes=576
+visual_pieces=12 visual_dma=576
 spc_driver_code=D046E1817CE18D5C
 spc_driver_data=4D8B5E57A7B1359A
 spc_driver_ram=856CF336ECC55C5B
-spc_driver_steps=11 spc_driver_pc=1076 spc_driver_stop=BE
+spc_driver_steps=13 spc_driver_pc=FFC0 spc_driver_stop=2 spc_driver_vector=FFC0
 ```
 
-The existing whole-cartridge frontend validation remains:
+The existing scene bootstrap validation remains:
 
 ```text
-frontends=230 failed=0 signature=2BA007DBD5D4A725
+scenes=230 failed=0 signature=6F88519C029414AB
 ```
 
-This is still not a complete playable or pixel-perfect port. The five largest missing player states, shared collision/movement helpers, gameplay object initialization, enemies, progression and complete SPC700/DSP execution remain major blockers.
+The frontend signature changes because the authentic player visual state is now part of the runtime. It must be regenerated rather than compared with the old diagnostic-marker signature.
+
+This is still not a complete playable or pixel-perfect port. Complete behavior of the shared movement/collision helpers, live object initialization, enemies, progression, menus and full SPC700/DSP audio remain major blockers.
 
 ## ROM required locally
 
@@ -61,9 +64,9 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-There are now **78 automated tests configured**: 77 C tests and one Python control-flow test. The five focused checks for this stage pass locally with `-Wall -Wextra -Wpedantic -Werror`.
+There are now **80 automated tests configured**: 79 C tests and one Python control-flow test. The seven focused local tests for this stage pass with `-Wall -Wextra -Wpedantic -Werror`; the modified frontend also passes a focused syntax/integration test with authentic frame construction and marker fallback.
 
-## Validate translated gameplay, OAM/DMA and SPC startup
+## Validate translated gameplay, visual pipeline and SPC handoff
 
 ```bash
 ./build/dk1_gameplay_validate \
@@ -80,16 +83,19 @@ When X11 is available:
   0 384 224
 ```
 
+L/R/Y/B still move the diagnostic player position in the host preview, but the visible object is now built from the original frame pieces and frame graphics whenever the ROM/OBJ configuration permits it. This is a rendering integration milestone, not proof that original Donkey Kong physics are complete.
+
 ## Accuracy boundary
 
-Player state addresses and local mutations follow confirmed bank-`$BF` handlers. Screen-coordinate and flip formulas follow `$BB:A8B8-$BB:A987` and the four frame-piece renderer paths. Graphics DMA scheduling follows `$BB:A9A3-$BB:AA1F`, while NMI consumption follows `$81:8CB0`. SPC driver placement follows `$CA:B133-$CA:B15D`; the instruction tracer intentionally stops when it reaches an opcode outside its proven subset.
+The final state handlers follow confirmed bank-`$BF` instructions and keep unresolved JSR/JSL calls visible in required-call masks. The visual pipeline composes already-confirmed frame layout, screen transform, DMA producer and NMI consumer modules without extracting assets. SPC `DAS`/`BRK` behavior follows a proven emulator implementation and stops at the IPL handoff rather than embedding Nintendo's 64-byte IPL ROM.
 
 ## What still blocks gameplay
 
-- Translate states 2–5 and 10 plus their large shared movement/collision helpers.
-- Connect the player state runtime, animation, screen transform, frame DMA and OAM paths in the live frontend.
-- Complete neighboring-cell/material collision effects and object spawning.
+- Translate and connect the shared movement/collision helpers called by the player states.
+- Drive the player state machine from real object initialization and controller state in the live frontend.
+- Complete neighboring-cell/material collision effects and dynamic object spawning.
 - Translate common enemies, barrels, collectibles and level-completion logic.
-- Extend the SPC700 core beyond the initial driver call and implement DSP voices, BRR playback, music and effects.
+- Model IPL-ROM continuation or replace it with a clean-room handoff, then execute the driver command loop.
+- Implement DSP voices, BRR playback, music and effects.
 - Implement menus, progression and SRAM compatibility.
-- Compare native frame/input/audio traces against an emulator reference.
+- Compare native frame/input/OAM/VRAM/APUIO traces against an emulator reference.

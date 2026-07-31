@@ -33,6 +33,22 @@ bool dk1_spc700_driver_startup_load(const Dk1RomImage *rom,
     return true;
 }
 
+static void set_zn(Dk1Spc700DriverTrace *t, uint8_t value) {
+    t->psw &= (uint8_t)~0x82u;
+    if (value == 0u) t->psw |= 0x02u;
+    t->psw |= value & 0x80u;
+}
+
+static void decimal_adjust_subtract(Dk1Spc700DriverTrace *t) {
+    if (t->a > 0x99u || (t->psw & 0x01u) == 0u) {
+        t->a = (uint8_t)(t->a - 0x60u);
+        t->psw &= (uint8_t)~0x01u;
+    }
+    if ((t->a & 0x0Fu) > 9u || (t->psw & 0x08u) == 0u)
+        t->a = (uint8_t)(t->a - 6u);
+    set_zn(t, t->a);
+}
+
 static void push8(Dk1Spc700DriverStartup *s, Dk1Spc700DriverTrace *t, uint8_t value) {
     s->ram[0x0100u | t->sp] = value;
     t->sp--;
@@ -51,41 +67,41 @@ bool dk1_spc700_driver_trace_entry(Dk1Spc700DriverStartup *s,
         uint16_t pc = t->pc;
         uint8_t op = s->ram[pc];
         switch (op) {
-        case 0x00u:
+        case 0x00u: /* NOP */
             t->pc = (uint16_t)(pc + 1u);
             break;
-        case 0x20u:
+        case 0x20u: /* CLRP */
             t->psw &= (uint8_t)~0x20u;
             t->pc = (uint16_t)(pc + 1u);
             break;
-        case 0xCDu:
+        case 0xCDu: /* MOV X,#imm */
             t->x = s->ram[(uint16_t)(pc + 1u)];
             t->pc = (uint16_t)(pc + 2u);
             break;
-        case 0xBDu:
+        case 0xBDu: /* MOV SP,X */
             t->sp = t->x;
             t->pc = (uint16_t)(pc + 1u);
             break;
-        case 0xE4u: {
+        case 0xE4u: { /* MOV A,dp */
             uint8_t dp = s->ram[(uint16_t)(pc + 1u)];
             t->a = s->ram[dp];
             t->pc = (uint16_t)(pc + 2u);
             break;
         }
-        case 0xC4u: {
+        case 0xC4u: { /* MOV dp,A */
             uint8_t dp = s->ram[(uint16_t)(pc + 1u)];
             s->ram[dp] = t->a;
             t->pc = (uint16_t)(pc + 2u);
             break;
         }
-        case 0xC5u: {
+        case 0xC5u: { /* MOV abs,A */
             uint16_t address = (uint16_t)(s->ram[(uint16_t)(pc + 1u)] |
                                 ((uint16_t)s->ram[(uint16_t)(pc + 2u)] << 8u));
             s->ram[address] = t->a;
             t->pc = (uint16_t)(pc + 3u);
             break;
         }
-        case 0x3Fu: {
+        case 0x3Fu: { /* CALL abs */
             uint16_t target = (uint16_t)(s->ram[(uint16_t)(pc + 1u)] |
                               ((uint16_t)s->ram[(uint16_t)(pc + 2u)] << 8u));
             uint16_t return_pc = (uint16_t)(pc + 3u);
@@ -93,6 +109,23 @@ bool dk1_spc700_driver_trace_entry(Dk1Spc700DriverStartup *s,
             push8(s, t, (uint8_t)return_pc);
             t->pc = target;
             break;
+        }
+        case 0xBEu: /* DAS A */
+            decimal_adjust_subtract(t);
+            t->pc = (uint16_t)(pc + 1u);
+            break;
+        case 0x0Fu: { /* BRK: driver intentionally hands control to the IPL vector. */
+            uint16_t return_pc = (uint16_t)(pc + 1u);
+            push8(s, t, (uint8_t)(return_pc >> 8u));
+            push8(s, t, (uint8_t)return_pc);
+            push8(s, t, t->psw);
+            t->psw |= 0x10u;
+            t->psw &= (uint8_t)~0x04u;
+            t->brk_vector = 0xFFC0u;
+            t->pc = t->brk_vector;
+            t->instructions++;
+            t->stop = DK1_SPC_TRACE_IPL_BRK_HANDOFF;
+            return true;
         }
         default:
             t->unsupported_pc = pc;

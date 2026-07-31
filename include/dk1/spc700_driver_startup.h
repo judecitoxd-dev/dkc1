@@ -24,7 +24,8 @@ typedef struct Dk1Spc700DriverStartup {
 
 typedef enum Dk1Spc700TraceStop {
     DK1_SPC_TRACE_LIMIT = 0,
-    DK1_SPC_TRACE_UNSUPPORTED_OPCODE = 1
+    DK1_SPC_TRACE_UNSUPPORTED_OPCODE = 1,
+    DK1_SPC_TRACE_IPL_BRK_HANDOFF = 2
 } Dk1Spc700TraceStop;
 
 typedef struct Dk1Spc700DriverTrace {
@@ -36,6 +37,7 @@ typedef struct Dk1Spc700DriverTrace {
     uint64_t instructions;
     uint16_t unsupported_pc;
     uint8_t unsupported_opcode;
+    uint16_t brk_vector;
     Dk1Spc700TraceStop stop;
 } Dk1Spc700DriverTrace;
 
