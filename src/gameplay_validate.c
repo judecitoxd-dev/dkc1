@@ -3,6 +3,7 @@
 #include "dk1/apu_boot_image.h"
 #include "dk1/apu_driver_catalog.h"
 #include "dk1/object_animation_script.h"
+#include "dk1/object_frame_layout.h"
 #include "dk1/player_coverage.h"
 #include "dk1/player_dispatch.h"
 #include "dk1/rom_image.h"
@@ -16,11 +17,12 @@ int main(int argc, char **argv) {
     Dk1Spc700BootstrapCpu spc;
     Dk1ObjectAnimationScriptState animation;
     Dk1AnimationScriptResult animation_result;
+    Dk1ObjectFrameLayout frame_layout;
     uint16_t state;
     unsigned invalid = 0u;
     bool spc_ok;
     size_t apu_sources = 0u, apu_bytes = 0u;
-    uint64_t catalog_signature, payload_signature;
+    uint64_t catalog_signature, payload_signature, frame_signature = 0u;
 
     if (argc != 2) {
         fprintf(stderr, "usage: %s ROM\n", argv[0]);
@@ -50,6 +52,12 @@ int main(int argc, char **argv) {
         animation_result.status != DK1_ANIMATION_FRAME_READY)
         ++invalid;
 
+    if (!dk1_object_frame_layout_read(&rom, animation.frame, &frame_layout) ||
+        frame_layout.source_pc != 0xD7620Au || frame_layout.piece_count != 12u)
+        ++invalid;
+    else
+        frame_signature = dk1_object_frame_layout_signature(&frame_layout);
+
     dk1_spc700_bootstrap_init(&spc, &apu);
     spc_ok = dk1_spc700_bootstrap_send_byte(&spc, 1u, 0x2000u, 0x12u, 256u) &&
              dk1_spc700_bootstrap_send_byte(&spc, 3u, 0x2001u, 0x34u, 256u) &&
@@ -62,7 +70,8 @@ int main(int argc, char **argv) {
     if (catalog_signature == 0u || payload_signature == 0u) ++invalid;
 
     printf("player_states=%u planned=%u local=%u invalid=%u "
-           "translation=%016llX apu_boot=%016llX animation=%04X spc_steps=%llu "
+           "translation=%016llX apu_boot=%016llX animation=%04X "
+           "frame_pieces=%u frame_layout=%016llX spc_steps=%llu "
            "apu_sources=%u apu_bytes=%u apu_catalog=%016llX apu_payload=%016llX\n",
            (unsigned)DK1_PLAYER_STATE_COUNT,
            (unsigned)dk1_player_planned_state_count(),
@@ -71,6 +80,8 @@ int main(int argc, char **argv) {
            (unsigned long long)dk1_player_translation_signature(),
            (unsigned long long)apu.signature,
            animation.frame,
+           (unsigned)frame_layout.piece_count,
+           (unsigned long long)frame_signature,
            (unsigned long long)spc.instructions,
            (unsigned)apu_sources,
            (unsigned)apu_bytes,
