@@ -6,6 +6,12 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 
 add_library(dk1_core
+    src/player_state_runtime.c
+    src/player_interrupt.c
+    src/player_input_router.c
+    src/player_coverage.c
+    src/dynamic_tile_stream.c
+    src/apu_boot_image.c
     src/apu_mailbox.c
     src/bg_renderer.c
     src/boot_control.c
@@ -91,10 +97,18 @@ add_executable(dk1_frontend_validate src/frontend_validate.c)
 target_link_libraries(dk1_frontend_validate PRIVATE dk1_core)
 add_executable(dk1_player_validate src/player_validate.c)
 target_link_libraries(dk1_player_validate PRIVATE dk1_core)
+add_executable(dk1_gameplay_validate src/gameplay_validate.c)
+target_link_libraries(dk1_gameplay_validate PRIVATE dk1_core)
 
 enable_testing()
 
 foreach(test_name IN ITEMS
+    player_state_runtime
+    player_interrupt
+    player_input_router
+    player_coverage
+    dynamic_tile_stream
+    apu_boot_image
     reset
     apu_mailbox
     bg_renderer

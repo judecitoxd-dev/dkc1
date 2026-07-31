@@ -1,0 +1,3 @@
+#include "dk1/player_interrupt.h"
+#include <string.h>
+bool dk1_player_interrupt_apply(Dk1PlayerInterruptState*s,Dk1PlayerInterruptResult*r){uint16_t request;if(!s||!r)return false;memset(r,0,sizeof(*r));request=s->request_1595&0x7FFFu;if(request!=1u&&request!=0x20u&&request!=0x40u&&request!=0x80u)return true;s->request_1595=0u;r->abort_state=true;if(request==1u||request==0x20u){r->call_a1b9=true;return true;}if(request==0x40u){s->field_11a1=0x00C0u;s->state_1029=0x0019u;r->effect_id=0x004Eu;r->call_a29b=true;return true;}s->aux_16e5=0u;if(s->attached_object_0512!=0u){s->state_1029=0x0015u;r->spawn_type=0x0036u;return true;}if(s->aux_16f5==0u){s->state_1029=1u;r->effect_id=0x0052u;}else{s->state_1029=0x001Au;r->effect_id=0x0053u;}return true;}
