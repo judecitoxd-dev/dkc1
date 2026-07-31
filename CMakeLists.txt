@@ -6,6 +6,9 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 
 add_library(dk1_core
+    src/player_motion.c
+    src/player_preview_runtime.c
+    src/spc700_ipl_protocol.c
     src/player_core_runtime.c
     src/player_visual_runtime.c
     src/player_final_runtime.c
@@ -117,6 +120,10 @@ target_link_libraries(dk1_gameplay_validate PRIVATE dk1_core)
 enable_testing()
 
 foreach(test_name IN ITEMS
+    player_motion
+    player_preview_runtime
+    spc700_ipl_protocol
+    spc700_ipl_driver_bridge
     player_core_runtime
     player_visual_runtime
     player_final_runtime

@@ -8,11 +8,13 @@
 #include "dk1/object_frame_layout.h"
 #include "dk1/object_screen_oam.h"
 #include "dk1/player_coverage.h"
+#include "dk1/player_motion.h"
 #include "dk1/player_visual_runtime.h"
 #include "dk1/player_dispatch.h"
 #include "dk1/rom_image.h"
 #include "dk1/spc700_bootstrap.h"
 #include "dk1/spc700_driver_startup.h"
+#include "dk1/spc700_ipl_protocol.h"
 
 int main(int argc, char **argv) {
     Dk1OwnedRom owned = {0};
@@ -22,6 +24,8 @@ int main(int argc, char **argv) {
     Dk1Spc700BootstrapCpu spc;
     Dk1Spc700DriverStartup driver;
     Dk1Spc700DriverTrace driver_trace;
+    Dk1Spc700IplProtocol ipl;
+    Dk1PlayerMotion motion;
     Dk1ObjectAnimationScriptState animation;
     Dk1AnimationScriptResult animation_result;
     Dk1ObjectFrameLayout frame_layout;
@@ -103,6 +107,27 @@ int main(int argc, char **argv) {
         driver_trace.pc != 0xFFC0u || driver_trace.brk_vector != 0xFFC0u)
         ++invalid;
 
+    memset(&motion, 0, sizeof(motion));
+    motion.world_x = 100;
+    motion.world_y = 40;
+    motion.target_velocity_x = 0x0180;
+    dk1_player_motion_approach_horizontal(&motion, 0u);
+    dk1_player_motion_apply_gravity(&motion, false, 0);
+    dk1_player_motion_integrate(&motion);
+    if (motion.world_x != 100 || motion.world_y != 39 ||
+        motion.velocity_x != 0x0030 || motion.velocity_y != (int16_t)-0x0070 ||
+        motion.subpixel_x != 0x3000u || motion.subpixel_y != 0x9000u)
+        ++invalid;
+
+    if (!dk1_spc700_ipl_init(&ipl, driver.ram, sizeof(driver.ram)) ||
+        !dk1_spc700_ipl_begin(&ipl, DK1_SPC_IPL_BEGIN, 0x3000u) ||
+        !dk1_spc700_ipl_write_byte(&ipl, 0u, 0x11u) ||
+        !dk1_spc700_ipl_write_byte(&ipl, 1u, 0x22u) ||
+        !dk1_spc700_ipl_write_byte(&ipl, 2u, 0x33u) ||
+        !dk1_spc700_ipl_launch(&ipl, 4u, DK1_SPC_DRIVER_ENTRY) ||
+        ipl.bytes_written != 3u || ipl.pc != DK1_SPC_DRIVER_ENTRY)
+        ++invalid;
+
     if (!dk1_apu_driver_catalog_validate(&rom, &apu_sources, &apu_bytes)) ++invalid;
     catalog_signature = dk1_apu_driver_catalog_signature(&rom);
     payload_signature = dk1_apu_driver_payload_signature(&rom);
@@ -114,6 +139,8 @@ int main(int argc, char **argv) {
            "frame_dma_records=%u frame_dma_bytes=%u visual_pieces=%u visual_dma=%u spc_steps=%llu "
            "driver_code=%016llX driver_data=%016llX driver_ram=%016llX "
            "driver_steps=%llu driver_pc=%04X driver_stop=%u driver_vector=%04X "
+           "motion_x=%d motion_y=%d motion_vx=%04X motion_vy=%04X "
+           "motion_subx=%04X motion_suby=%04X ipl_bytes=%llu ipl_pc=%04X "
            "apu_sources=%u apu_bytes=%u apu_catalog=%016llX apu_payload=%016llX\n",
            (unsigned)DK1_PLAYER_STATE_COUNT,
            (unsigned)dk1_player_planned_state_count(),
@@ -137,6 +164,14 @@ int main(int argc, char **argv) {
            (unsigned)driver_trace.pc,
            (unsigned)driver_trace.stop,
            (unsigned)driver_trace.brk_vector,
+           motion.world_x,
+           motion.world_y,
+           (unsigned)(uint16_t)motion.velocity_x,
+           (unsigned)(uint16_t)motion.velocity_y,
+           (unsigned)motion.subpixel_x,
+           (unsigned)motion.subpixel_y,
+           (unsigned long long)ipl.bytes_written,
+           (unsigned)ipl.pc,
            (unsigned)apu_sources,
            (unsigned)apu_bytes,
            (unsigned long long)catalog_signature,

@@ -20,6 +20,20 @@ static void update_marker(Dk1SoftwareFrontend *frontend) {
     frontend->player_visual_ready = false;
 }
 
+static void update_preview_screen_position(Dk1SoftwareFrontend *frontend) {
+    int32_t x = (int32_t)frontend->player_preview.motion.world_x -
+                frontend->runtime.view.camera_x;
+    int32_t y = 224 - (int32_t)frontend->runtime.view.camera_y -
+                frontend->player_preview.motion.world_y;
+    if (x < -256) x = -256;
+    if (x > 255) x = 255;
+    if (y < -128) y = -128;
+    if (y > 255) y = 255;
+    frontend->marker_x = (int16_t)x;
+    frontend->marker_y = (int16_t)y;
+    frontend->player_frame = frontend->player_preview.frame_id;
+}
+
 static bool update_player_visual(const Dk1RomImage *rom,
                                  const Dk1SceneMemory *scene,
                                  Dk1SoftwareFrontend *frontend) {
@@ -29,13 +43,13 @@ static bool update_player_visual(const Dk1RomImage *rom,
         update_marker(frontend);
         return true;
     }
-    transform.world_x = (int16_t)(frontend->runtime.view.camera_x + frontend->marker_x);
-    transform.world_y = (int16_t)(224 - frontend->runtime.view.camera_y - frontend->marker_y);
+    transform.world_x = frontend->player_preview.motion.world_x;
+    transform.world_y = frontend->player_preview.motion.world_y;
     transform.camera_x = (int16_t)frontend->runtime.view.camera_x;
     transform.vertical_origin = 224;
     transform.vertical_scroll = (int16_t)frontend->runtime.view.camera_y;
     transform.vertical_offset = 0;
-    transform.object_flags = 0u;
+    transform.object_flags = frontend->player_preview.facing_left ? 0x4000u : 0u;
     style.base_tile_number = frontend->player_tile_base;
     style.palette = frontend->marker_palette;
     style.priority = 3u;
@@ -54,6 +68,8 @@ bool dk1_software_frontend_init(const Dk1SceneMemory *scene,
                                 Dk1SoftwareFrontend *frontend) {
     uint8_t obsel = 0u;
     Dk1DynamicStreamUpdate update;
+    int16_t start_x;
+    int16_t start_y;
     if (scene == NULL || frontend == NULL || width == 0u || height == 0u) return false;
     memset(frontend, 0, sizeof(*frontend));
     frontend->runtime.view.width = width;
@@ -67,33 +83,32 @@ bool dk1_software_frontend_init(const Dk1SceneMemory *scene,
     frontend->player_vram = scene->vram;
     (void)dk1_ppu_preset_register(&scene->ppu, 0x2101u, &obsel);
     frontend->obsel = obsel;
-    update_marker(frontend);
     if (!dk1_scene_view_clamp(scene, &frontend->runtime.view)) return false;
+    start_x = (int16_t)(frontend->runtime.view.camera_x + width / 2u);
+    start_y = (int16_t)(224 - frontend->runtime.view.camera_y - height / 2u);
+    dk1_player_preview_init(&frontend->player_preview, start_x, start_y);
+    update_preview_screen_position(frontend);
+    update_marker(frontend);
     return dk1_dynamic_stream_update(frontend->runtime.view, 128u,
                                      &frontend->stream, &update);
 }
 
 bool dk1_software_frontend_step(const Dk1SceneMemory *scene, uint16_t held,
                                 Dk1SoftwareFrontend *frontend) {
-    int32_t x, y;
     Dk1DynamicStreamUpdate update;
+    int32_t maximum_world_x;
     if (scene == NULL || frontend == NULL) return false;
     dk1_host_input_update(&frontend->input, held);
     if (!dk1_scene_runtime_step(scene, held, &frontend->runtime)) return false;
     if (!dk1_dynamic_stream_update(frontend->runtime.view, 128u,
                                    &frontend->stream, &update)) return false;
-    x = frontend->marker_x;
-    y = frontend->marker_y;
-    if (held & DK1_HOST_BUTTON_L) x -= 2;
-    if (held & DK1_HOST_BUTTON_R) x += 2;
-    if (held & DK1_HOST_BUTTON_Y) y -= 2;
-    if (held & DK1_HOST_BUTTON_B) y += 2;
-    if (x < -32) x = -32;
-    if (x > (int32_t)frontend->runtime.view.width + 32) x = frontend->runtime.view.width + 32;
-    if (y < -32) y = -32;
-    if (y > 255) y = 255;
-    frontend->marker_x = (int16_t)x;
-    frontend->marker_y = (int16_t)y;
+    dk1_player_preview_step(&frontend->player_preview, held, frontend->input.pressed);
+    maximum_world_x = (int32_t)scene->camera.maximum_x + frontend->runtime.view.width + 32;
+    if (frontend->player_preview.motion.world_x < -32)
+        frontend->player_preview.motion.world_x = -32;
+    if (frontend->player_preview.motion.world_x > maximum_world_x)
+        frontend->player_preview.motion.world_x = (int16_t)maximum_world_x;
+    update_preview_screen_position(frontend);
     frontend->player_visual_ready = false;
     return true;
 }
@@ -150,6 +165,7 @@ uint64_t dk1_software_frontend_signature(const Dk1SoftwareFrontend *frontend) {
     hash = dk1_fnv1a64(&frontend->runtime, sizeof(frontend->runtime), hash);
     hash = dk1_fnv1a64(&frontend->input, sizeof(frontend->input), hash);
     hash = dk1_fnv1a64(&frontend->stream, sizeof(frontend->stream), hash);
+    hash = dk1_fnv1a64(&frontend->player_preview, sizeof(frontend->player_preview), hash);
     hash = dk1_fnv1a64(&frontend->marker_x, sizeof(frontend->marker_x), hash);
     hash = dk1_fnv1a64(&frontend->marker_y, sizeof(frontend->marker_y), hash);
     hash = dk1_fnv1a64(&frontend->player_frame, sizeof(frontend->player_frame), hash);

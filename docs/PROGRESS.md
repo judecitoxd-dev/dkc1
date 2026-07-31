@@ -1,62 +1,51 @@
 # Progress accounting
 
-## Current total: 94%
+## Current total: 96%
 
-Ninety-four percent refers to completed engineering infrastructure and translated systems, not ninety-four percent playable gameplay.
+Ninety-six percent refers to completed engineering infrastructure and translated systems, not ninety-six percent playable gameplay.
 
 | Milestone | Weight | Done | Contribution |
 |---|---:|---:|---:|
 | Reproducible ROM identification and mapping | 5% | 100% | 5.00% |
-| Function discovery, control-flow graph, symbols | 15% | 92% | 13.80% |
-| Portable gameplay/system C | 45% | 100% state coverage | 45.00% |
+| Function discovery, control-flow graph, symbols | 15% | 94% | 14.10% |
+| Portable gameplay/system C | 45% | 100% state coverage + core motion | 45.00% |
 | Graphics, camera, tilemaps, widescreen | 15% | 99% | 14.85% |
-| Audio | 8% | 70% | 5.60% |
-| Input, saves, menus, compatibility | 7% | 70% | 4.90% |
-| Validation and packaging | 5% | 95% | 4.75% |
+| Audio | 8% | 80% | 6.40% |
+| Input, saves, menus, compatibility | 7% | 85% | 5.95% |
+| Validation and packaging | 5% | 98% | 4.90% |
 
-Weighted engineering foundation: **93.90%**, rounded to the public **94%** headline. This still does not mean that an original-compatible level is playable from start to finish.
+Weighted engineering foundation: **96.20%**, rounded to the public **96%** headline. This still does not mean that an original-compatible level is playable from start to finish.
 
-## Completed in the 90-to-94% stage
+## Completed in the 94-to-96% stage
 
-### 91% — player states 2–5
+### 95% — exact shared fixed-point motion and controlled preview
 
-- Translated the local branches of `$BF:898F`, `$BF:8ADB`, `$BF:8BDD` and `$BF:8C0E`.
-- Preserves partner-state distance thresholds, transitions `$33/$34/$35`, position copying, facing requests, owner floor clamping, countdown behavior, pair launch/reset fields and the state-6 exit.
-- External helpers such as `$C486`, `$AF81`, `$AFE4`, `$B012`, `$C121`, `$A067` and `$BC:B882` remain explicit required calls.
+- Translated `$BF:AF81` default/owner gravity and its `-$0800` clamp.
+- Translated `$BF:AFB2` light gravity with `-$0140/-$0200` terminal values.
+- Translated horizontal `$BF:AFE4` and vertical `$BF:B012` signed 8.8 integration, including fractional carry into the integer coordinate.
+- Translated the nine response functions selected at `$BF:B29E` and the local target approach used by `$BF:B1D5`.
+- Added `player_preview_runtime`: L/R select `-$0180/$0180`, B jumps, facing flips the authentic OAM frame, and movement is no longer direct screen-pixel addition.
+- Landing remains a flat preview baseline. Original ROM terrain/material collision is not claimed complete.
 
-### 92% — state 10 and complete dispatcher classification
+### 96% — clean-room IPL transfer and relaunch bridge
 
-- Translated the local reset/launch branches beginning at `$BF:8DFA`.
-- Preserves speed masking, state `$01/$2B/$53/$56` transitions, link swapping, owner flag clearing, `$0A00/$0080` vertical launches and animation `$05/$60`.
-- All 87 dispatcher entries are now classified: 84 local-semantic states and exact plans for 0, 1 and 20.
-- Supported-ROM translation signature: `3267767EC866CDAD`.
-
-### 93% — integrated authentic player visual path
-
-- Added `player_visual_runtime`, composing the frame table, piece parser, world/camera transform, OAM writer, frame DMA producer and NMI DMA consumer.
-- Frame `$0330` produces 12 OAM pieces and 576 bytes across two DMA records.
-- `software_frontend` uses a private frame VRAM image and renders the authentic pieces when a supported ROM and compatible OBJ mode are available.
-- The previous marker remains as a safe fallback for ROM-less synthetic tests and incompatible scene configurations.
-
-### 94% — SPC decimal adjust and IPL handoff
-
-- Added SPC700 opcode `$BE` (`DAS A`) with C/H and Z/N effects for the proven startup path.
-- Added opcode `$0F` (`BRK`) stack writes and an explicit clean-room handoff to IPL vector `$FFC0`.
-- The trace advances from 11 to 13 instructions: `$05E8` startup → `$1076` DAS → BRK → `$FFC0`.
-- Nintendo's IPL ROM is not embedded or executed, and this is not yet sound playback.
+- Added an IPL behavior model that exposes ready ports `$AA/$BB`, accepts command `$CC`, writes sequential token-acknowledged bytes and launches a requested SPC address.
+- It operates on the existing 64 KiB SPC RAM image and does not include Nintendo's 64-byte IPL ROM.
+- The validator uploads `11 22 33` to `$3000` and relaunches the loaded driver at `$05E8`.
+- This advances protocol coverage beyond the `$FFC0` BRK handoff but does not implement IPL instruction timing, DSP or audible output.
 
 ## Validation
 
-- Added focused tests for the five core states and the complete player visual pipeline.
-- Updated coverage and SPC startup tests for the new signatures and IPL handoff.
-- Seven focused C tests pass together with `-Wall -Wextra -Wpedantic -Werror`.
-- A focused frontend integration build also passes, including authentic visual construction and ROM-less fallback.
-- Configured project validation increases from 78 to 80 tests.
+- Added tests for fixed-point motion, host preview motion and the clean-room IPL protocol.
+- Updated the software frontend test for velocity/subpixel movement and jumping.
+- Twelve focused tests pass together with `-Wall -Wextra -Wpedantic -Werror`.
+- Configured project validation increases from 80 to 84 tests.
+- The gameplay validator now reports deterministic motion accumulators and the IPL transfer/relaunch result.
 
 ## Next measurable targets
 
-- Implement the shared player movement/collision helpers currently represented by required-call masks.
-- Initialize and advance the player state runtime inside `software_frontend_step` instead of only moving the preview position.
-- Translate a common barrel or enemy through scheduler, collision, animation, DMA and OAM.
-- Continue the SPC path after the IPL handoff without embedding proprietary IPL bytes.
+- Connect ROM terrain contacts and material side effects to `player_preview_runtime`, replacing the flat landing plane.
+- Advance the actual player dispatcher every frontend frame rather than using a host-only preview controller.
+- Translate one common barrel or enemy through scheduler, collision, animation, DMA and OAM.
+- Continue from the IPL protocol into the loaded driver's port/timer command loop.
 - Add emulator-reference traces and begin menus/progression/SRAM compatibility.
