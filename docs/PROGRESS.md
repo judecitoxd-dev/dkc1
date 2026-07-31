@@ -1,60 +1,61 @@
 # Progress accounting
 
-## Current total: 21%
+## Current total: 26%
 
 The total is milestone-weighted so it cannot be inflated by generated stubs.
 
 | Milestone | Weight | Done | Contribution |
 |---|---:|---:|---:|
 | Reproducible ROM identification and mapping | 5% | 100% | 5.00% |
-| Function discovery, control-flow graph, symbols | 15% | 50% | 7.50% |
-| Portable gameplay/system C | 45% | 35% | 15.75% |
-| Graphics, camera, tilemaps, widescreen | 15% | 36% | 5.40% |
+| Function discovery, control-flow graph, symbols | 15% | 55% | 8.25% |
+| Portable gameplay/system C | 45% | 43% | 19.35% |
+| Graphics, camera, tilemaps, widescreen | 15% | 45% | 6.75% |
 | Audio | 8% | 0% | 0.00% |
-| Input, saves, menus, compatibility | 7% | 22% | 1.54% |
-| Validation and packaging | 5% | 22% | 1.10% |
+| Input, saves, menus, compatibility | 7% | 25% | 1.75% |
+| Validation and packaging | 5% | 30% | 1.50% |
 
-Weighted pipeline foundation: **36.29%**. The public headline remains **21%** because a complete original-compatible level is still not playable.
+Weighted pipeline foundation: **42.60%**. The public headline remains **26%** because a complete original-compatible level is still not playable.
 
 ## Completed in this five-point stage
 
-### 17% — exact terrain/streaming configuration records
+### 22% — exact level-id to terrain-profile map
 
-- Translated the 14 split records consumed by `$81:8C67-$81:8CAF`.
-- Each portable record exposes the map pointer, visual metatile bank/base, collision-descriptor pointer, stream destination, collision block count, and terrain callback.
-- Preserved the original zero-bank fallback to bank `$80`.
+- Followed all 230 bank-`$B9` level-init callbacks selected by level id `$003E`.
+- Every id resolves to exactly one of the 14 terrain/streaming profiles consumed by `$81:8C66`.
+- Preserved the original bank-`$B9` callback address alongside the resolved profile.
+- Confirmed all 14 profiles are used.
 
-### 18% — ROM-backed terrain binding
+### 23% — PPU preset decoding
 
-- Added terrain sampling that reads map cells and block-half descriptors directly from the user's ROM.
-- Reuses the previously translated 63 slope transforms and optional shape flags.
-- Supports floor searches without copying or committing level data.
+- Translated the compact register-stream format consumed by `$B9:A4DC`.
+- Parses all 23 presets from `$B9:A50E`.
+- Reconstructs single-register and consecutive two-register writes in `$2100-$213F`.
+- Exposes actual BG mode, screen bases, character bases, layer enables, and color-math registers.
 
-### 19% — visual metatile expansion
+### 24% — VRAM package catalog
 
-- Translated the visual block expansion behavior visible at `$81:8CEF-$81:8DDF`.
-- Expands one 32x32 map cell into sixteen SNES tilemap words.
-- Preserves horizontal and vertical map-cell flips, source order reversal, and tile flip-bit XOR behavior.
-- Corrected the model after real-ROM validation showed `$DB` limits collision descriptors, not visual metatile ids.
+- Translated the package-list format consumed by `$B9:A924`.
+- Parsed 30 package ids, 96 seven-byte DMA records, ROM sources, WRAM `$7E/$7F` sources, VRAM destinations, byte counts, and compression flags.
 
-### 20% — complete map-column expansion
+### 25% — graphics decompressor
 
-- Added top-to-bottom map-cell reads for the column-major, vertically reversed layout.
-- Expands any requested range of 32-pixel columns into a 4x64 8x8-tile strip per column.
-- Keeps tile numbers, palette bits, priority, and flip flags intact for future rendering.
+- Translated `$B8:982F-$B8:98C9` into bounded portable C.
+- Implemented literal, repeated-byte, output-copy, and 64-word dictionary commands.
+- Preserved overlapping copies, bank-local source wrapping, and the `$00` terminator.
+- Validated all 16 compressed package records in the supported ROM.
 
-### 21% — local level diagnostic tool
+### 26% — reconstructed VRAM and authentic tile sheet
 
-- Added `dk1_level_probe` for supported local ROMs.
-- Produces a 512-pixel-tall PPM using deterministic colors for actual tilemap words.
-- Overlays the reconstructed collision floor in red.
-- Verified profile zero locally with an eight-column, 256x512 output.
-- Expanded automated validation from 23 to 28 tests.
+- Added 64 KiB VRAM, 128 KiB WRAM, and 32 KiB decompression scratch models.
+- Applies direct and compressed DMA records in original order.
+- Added `dk1_vram_probe` to render reconstructed 4bpp tiles with a palette read from the local ROM.
+- Locally reconstructed package 1: four records, 34,256 DMA bytes, and 27,968 decompressed bytes.
+- Expanded automated validation from 28 to 33 configured tests; the five new tests pass locally with warnings treated as errors.
 
 ## Next measurable targets
 
-- Trace the exact level-id to terrain-profile selection path.
-- Translate compressed graphics and VRAM package formats used by the chosen profile.
-- Bind real tile graphics and palettes to the expanded tilemap words.
-- Complete neighboring-cell and material side effects of `$81:800D`.
-- Translate one common original actor callback against the bound terrain view.
+- Extract exact PPU preset, VRAM package, and palette-upload sequences for every level id.
+- Reconstruct the complete CGRAM state rather than supplying one palette address manually.
+- Bind reconstructed VRAM tiles to the expanded level map and produce the first correctly composed original background section.
+- Complete neighboring-cell/material side effects of `$81:800D`.
+- Translate one common original actor callback and its animation data.
