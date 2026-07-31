@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "dk1/apu_boot_image.h"
+#include "dk1/apu_driver_catalog.h"
 #include "dk1/object_animation_script.h"
 #include "dk1/player_coverage.h"
 #include "dk1/player_dispatch.h"
@@ -18,6 +19,8 @@ int main(int argc, char **argv) {
     uint16_t state;
     unsigned invalid = 0u;
     bool spc_ok;
+    size_t apu_sources = 0u, apu_bytes = 0u;
+    uint64_t catalog_signature, payload_signature;
 
     if (argc != 2) {
         fprintf(stderr, "usage: %s ROM\n", argv[0]);
@@ -53,8 +56,14 @@ int main(int argc, char **argv) {
              dk1_spc700_bootstrap_launch(&spc, 4u, 0x2000u, 256u);
     if (!spc_ok) ++invalid;
 
+    if (!dk1_apu_driver_catalog_validate(&rom, &apu_sources, &apu_bytes)) ++invalid;
+    catalog_signature = dk1_apu_driver_catalog_signature(&rom);
+    payload_signature = dk1_apu_driver_payload_signature(&rom);
+    if (catalog_signature == 0u || payload_signature == 0u) ++invalid;
+
     printf("player_states=%u planned=%u local=%u invalid=%u "
-           "translation=%016llX apu_boot=%016llX animation=%04X spc_steps=%llu\n",
+           "translation=%016llX apu_boot=%016llX animation=%04X spc_steps=%llu "
+           "apu_sources=%u apu_bytes=%u apu_catalog=%016llX apu_payload=%016llX\n",
            (unsigned)DK1_PLAYER_STATE_COUNT,
            (unsigned)dk1_player_planned_state_count(),
            (unsigned)dk1_player_translated_state_count(),
@@ -62,7 +71,11 @@ int main(int argc, char **argv) {
            (unsigned long long)dk1_player_translation_signature(),
            (unsigned long long)apu.signature,
            animation.frame,
-           (unsigned long long)spc.instructions);
+           (unsigned long long)spc.instructions,
+           (unsigned)apu_sources,
+           (unsigned)apu_bytes,
+           (unsigned long long)catalog_signature,
+           (unsigned long long)payload_signature);
     dk1_rom_free(&owned);
     return invalid != 0u ? 1 : 0;
 }

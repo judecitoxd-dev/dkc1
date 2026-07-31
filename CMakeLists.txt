@@ -6,6 +6,8 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 
 add_library(dk1_core
+    src/player_advanced_runtime.c
+    src/apu_driver_catalog.c
     src/player_extended_runtime.c
     src/object_animation_script.c
     src/spc700_bootstrap.c
@@ -106,6 +108,8 @@ target_link_libraries(dk1_gameplay_validate PRIVATE dk1_core)
 enable_testing()
 
 foreach(test_name IN ITEMS
+    player_advanced_runtime
+    apu_driver_catalog
     player_extended_runtime
     object_animation_script
     spc700_bootstrap
