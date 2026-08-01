@@ -4,8 +4,9 @@
 
 Ninety-nine percent means the engineering foundation reaches original level
 records, B5 type definitions, bounded object-pool import, camera-driven slot
-lifecycle, scheduler dispatch and one complete visible Barrel runtime. It does
-**not** mean the game is ninety-nine percent playable.
+lifecycle, scheduler dispatch, one complete visible Barrel runtime and the first
+streamed enemy runtime. It does **not** mean the game is ninety-nine percent
+playable.
 
 One hundred percent remains reserved for a complete original-compatible game
 loop and playthrough.
@@ -23,8 +24,8 @@ loop and playthrough.
   the callee runs and parsing resumes in the caller.
 - Added a call-stack cycle guard and retained an explicit boundary at unsupported
   variable-size B5 commands.
-- Full Rev 2 catalog validation now resolves 10,356 of 10,357 normal records
-  across 230 IDs with signature `A5702FF2DA67FE40`.
+- Full Rev 2 catalog validation resolves 10,356 of 10,357 normal records across
+  230 IDs with signature `A5702FF2DA67FE40`.
 
 ### Source record to scheduler
 
@@ -49,14 +50,31 @@ loop and playthrough.
 - Enforces the 25-slot primary pool and verifies every active scheduler callback.
 - The stream advances with `Dk1SoftwareFrontend` as the camera advances.
 
+### First streamed enemy: Gnawty
+
+- Catalogued Gnawty as normal object type `$004D` with callback `$BF:840C`.
+- Connected original walk, turn and dead animation IDs `$015A/$015B/$015C`.
+- Added `gnawty_runtime` with verified scheduler dispatch, fixed-point patrol,
+  ROM-terrain wall/ledge probes, stomp defeat, player rebound and side-contact
+  reporting.
+- Uses the source record and stable camera-stream slot rather than a manual
+  debug spawn.
+- Preserves defeated source-record state so a stomped Gnawty is not recreated
+  by ordinary camera streaming.
+- Builds original frame layouts through OAM and frame-graphics DMA for PC
+  rendering.
+- Exact `$BF:840C` helper semantics, player damage/invulnerability and original
+  patrol timing remain an explicit accuracy boundary.
+
 ### Level-aware frontend and Barrel
 
 - Initializes the bounded import and live camera stream.
+- Connects the first active streamed Gnawty to its executable runtime.
 - Spawns the first normal Barrel source record into the executable scene runtime.
-- Continues through pickup/hold/throw, fixed-point motion, ROM terrain, original
-  animation, frame layout, OAM/DMA and PC rendering.
+- The Barrel continues through pickup/hold/throw, fixed-point motion, ROM
+  terrain, original animation, frame layout, OAM/DMA and PC rendering.
 
-## Deterministic Jungle Hijinxs source result
+## Deterministic Jungle Hijinxs Barrel result
 
 ```text
 entrance=0016
@@ -76,15 +94,19 @@ callback=BFCF0C
 
 ## Validation
 
-- Added `level_sprite_definition_stack` and `level_sprite_catalog` tests.
-- Configured validation increases from 99 to 101 tests: 100 C plus one Python.
-- Both new tests pass locally with `-Wall -Wextra -Wpedantic -Werror`.
-- The complete repository suite and remote CI were not run in this stage.
+- Existing definition-stack and complete-catalog tests remain configured.
+- Added Gnawty identity coverage, `gnawty_runtime`, streamed frontend integration
+  and whole-cartridge Gnawty signature reporting.
+- Configured validation increases from 101 to 102 tests: 101 C plus one Python.
+- The new Gnawty code has not yet been confirmed by a complete repository run or
+  remote CI, so the headline remains 99%.
 
 ## Required for 100%
 
-- Bind streamed enemy, collectible, sign, effect and level-completion types to
-  executable actor state machines, collisions and visible rendering.
+- Translate exact Gnawty callback/shared enemy helper semantics and player
+  damage/invulnerability responses.
+- Bind remaining streamed enemy, collectible, sign, effect and level-completion
+  types to executable actor state machines, collisions and visible rendering.
 - Exact player carry/throw states and object ownership links.
 - Material-specific collision behavior.
 - Real two-Kong and linked-object initialization.
