@@ -14,16 +14,19 @@ typedef struct Dk1LevelSoftwareFrontendStats {
     size_t stream_catalog_count;
     size_t stream_active_count;
     size_t stream_overflow_count;
+    size_t gnawty_record_index;
     bool object_list_imported;
     bool object_stream_initialized;
     bool barrel_found;
     bool barrel_spawned;
+    bool gnawty_spawned;
 } Dk1LevelSoftwareFrontendStats;
 
 /* Initializes the regular software frontend, imports the entrance's complete
- * normal-record window, starts a camera-driven 25-slot object stream, and then
- * connects the first normal Barrel to the currently executable scene runtime.
- * Entrances without a resolvable object list or Barrel still initialize. */
+ * normal-record window, starts a camera-driven 25-slot object stream, connects
+ * the first active Gnawty enemy, and connects the first normal Barrel to the
+ * currently executable scene runtime. Entrances without any of these objects
+ * still initialize. */
 bool dk1_level_software_frontend_init(const Dk1RomImage *rom,
                                       const Dk1SceneMemory *scene,
                                       uint16_t entrance_id,
