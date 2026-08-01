@@ -364,6 +364,7 @@ static void convert_frame(Dk1Win32App *app) {
 static bool reset_level_runtime(Dk1Win32App *app) {
     if (app == NULL || app->scene == NULL)
         return false;
+    dk1_software_frontend_dispose(&app->frontend);
     memset(&app->frontend, 0, sizeof(app->frontend));
     memset(&app->source_stats, 0, sizeof(app->source_stats));
     if (!dk1_scene_memory_load(&app->rom, app->level, false, false,
@@ -407,6 +408,7 @@ static bool initialize_game(Dk1Win32App *app, const char *rom_path) {
 
 static void cleanup_game(Dk1Win32App *app) {
     if (app == NULL) return;
+    dk1_software_frontend_dispose(&app->frontend);
     free(app->dib_pixels);
     free(app->pixels);
     free(app->scene);
