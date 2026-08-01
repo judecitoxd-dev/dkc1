@@ -27,6 +27,7 @@ int main(void) {
     assert(!frontend.gnawty.active);
     assert(!frontend.gnawty_ready);
     assert(frontend.gnawty_active_count == 0u);
+    assert(frontend.gnawty_capacity_overflow_count == 0u);
     for (i = 0u; i < DK1_SOFTWARE_FRONTEND_EXTRA_GNAWTIES; ++i) {
         assert(frontend.additional_gnawties[i].runtime == NULL);
         assert(!frontend.additional_gnawties[i].ready);
@@ -36,5 +37,6 @@ int main(void) {
     /* Disposal is deliberately safe before initialization and after cleanup. */
     dk1_software_frontend_dispose(&frontend);
     assert(frontend.gnawty_active_count == 0u);
+    assert(frontend.gnawty_capacity_overflow_count == 0u);
     return 0;
 }
