@@ -8,6 +8,7 @@
 #include <time.h>
 #include "dk1/level_software_frontend.h"
 #include "dk1/rom_image.h"
+#include "dk1/scene_asset_cache.h"
 #include "dk1/scene_memory.h"
 
 static uint16_t key_button(KeySym key) {
@@ -26,6 +27,18 @@ static uint16_t key_button(KeySym key) {
     case XK_Shift_L: case XK_Shift_R: return DK1_HOST_BUTTON_SELECT;
     default: return 0u;
     }
+}
+
+static const char *cache_source_name(const Dk1SceneMemory *scene) {
+    if (scene == NULL)
+        return "unknown";
+    if (scene->cache.hit)
+        return "cache";
+    if (scene->cache.written)
+        return "ROM/cache-saved";
+    if (scene->cache.rejected)
+        return "ROM/cache-rebuilt";
+    return "ROM";
 }
 
 int main(int argc, char **argv) {
@@ -48,6 +61,9 @@ int main(int argc, char **argv) {
     int height = 224;
     int running = 1;
     int result = 1;
+    char cache_path[DK1_SCENE_ASSET_CACHE_PATH_CAPACITY];
+    const char *selected_cache = NULL;
+    char window_title[160];
     struct timespec delay = {0, 16666667L};
 
     if (argc < 3 || argc > 5) {
@@ -66,20 +82,29 @@ int main(int argc, char **argv) {
         !dk1_rom_identity(&rom, &identity) ||
         !dk1_rom_identity_is_supported_rev2(&identity))
         goto cleanup;
+    if (dk1_scene_asset_cache_default_path(
+            argv[1], (uint16_t)level, false, false,
+            cache_path, sizeof(cache_path)))
+        selected_cache = cache_path;
     scene = (Dk1SceneMemory *)malloc(sizeof(*scene));
     pixels = (Dk1Rgba8 *)calloc((size_t)width * (size_t)height,
                                 sizeof(*pixels));
     if (scene == NULL || pixels == NULL ||
-        !dk1_scene_memory_load(&rom, (uint16_t)level, false, false, scene) ||
+        !dk1_scene_memory_load_cached(&rom, (uint16_t)level,
+                                      false, false, selected_cache, scene) ||
         !dk1_level_software_frontend_init(&rom, scene, (uint16_t)level,
                                           (uint16_t)width, (uint16_t)height,
                                           &frontend, &source_stats))
         goto cleanup;
 
     fprintf(stderr,
-            "ROM assets: textures=%s palettes=%s packages=%zu records=%zu "
+            "ROM assets: source=%s cache_hit=%s cache_written=%s "
+            "textures=%s palettes=%s packages=%zu records=%zu "
             "dma=%zu decompressed=%zu vram_nonzero=%zu colors=%zu "
             "vram_sig=%016llX palette_sig=%016llX\n",
+            cache_source_name(scene),
+            scene->cache.hit ? "yes" : "no",
+            scene->cache.written ? "yes" : "no",
             scene->assets.textures_loaded ? "loaded" : "empty",
             scene->assets.palettes_loaded ? "loaded" : "empty",
             scene->assets.package_count,
@@ -119,10 +144,10 @@ int main(int argc, char **argv) {
     window = XCreateSimpleWindow(display, DefaultRootWindow(display),
                                  0, 0, (unsigned)width, (unsigned)height,
                                  0, 0, 0);
-    XStoreName(display, window,
-               scene->assets.textures_loaded && scene->assets.palettes_loaded ?
-               "DK1 preview - ROM textures and palettes loaded" :
-               "DK1 preview - ROM asset load incomplete");
+    (void)snprintf(window_title, sizeof(window_title),
+                   "DK1 preview - assets from %s",
+                   cache_source_name(scene));
+    XStoreName(display, window, window_title);
     XSelectInput(display, window,
                  ExposureMask | KeyPressMask | KeyReleaseMask |
                  StructureNotifyMask);
