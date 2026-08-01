@@ -129,6 +129,11 @@ bool dk1_software_frontend_step(const Dk1SceneMemory *s, uint16_t held,
     if (!dk1_scene_runtime_step(s, held, &f->runtime)) return false;
     if (!dk1_dynamic_stream_update(f->runtime.view, 128u, &f->stream, &u))
         return false;
+    if (f->level_objects_ready &&
+        !dk1_level_object_stream_update(
+            &f->level_objects, f->runtime.view.camera_x,
+            f->runtime.view.width, 128u, 128u))
+        return false;
     dk1_player_live_step(&f->player_live, &f->player_preview,
         f->player_terrain_ready ? &f->player_terrain : NULL,
         held, f->input.pressed);
@@ -209,6 +214,10 @@ uint64_t dk1_software_frontend_signature(const Dk1SoftwareFrontend *f) {
     h = dk1_fnv1a64(&f->runtime, sizeof(f->runtime), h);
     h = dk1_fnv1a64(&f->input, sizeof(f->input), h);
     h = dk1_fnv1a64(&f->stream, sizeof(f->stream), h);
+    h = dk1_fnv1a64(&f->level_objects_ready,
+                    sizeof(f->level_objects_ready), h);
+    if (f->level_objects_ready)
+        h = dk1_fnv1a64(&f->level_objects, sizeof(f->level_objects), h);
     h = dk1_fnv1a64(&f->player_preview, sizeof(f->player_preview), h);
     h = dk1_fnv1a64(&f->player_live, sizeof(f->player_live), h);
     h = dk1_fnv1a64(&f->player_terrain.last_attributes,
