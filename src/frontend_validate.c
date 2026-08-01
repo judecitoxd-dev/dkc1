@@ -17,6 +17,11 @@ int main(int argc, char **argv) {
     size_t failed = 0u;
     size_t terrain = 0u;
     size_t local = 0u;
+    size_t object_lists = 0u;
+    size_t object_records = 0u;
+    size_t object_imports = 0u;
+    size_t object_unresolved = 0u;
+    size_t object_overflow = 0u;
     size_t barrel_records = 0u;
     size_t barrel_spawns = 0u;
 
@@ -39,6 +44,7 @@ int main(int argc, char **argv) {
     for (level = 0u; level < DK1_SCENE_LEVEL_COUNT; ++level) {
         Dk1SoftwareFrontend frontend;
         Dk1LevelSoftwareFrontendStats source_stats;
+        size_t i;
         if (!dk1_scene_memory_load(&rom, level, false, false, scene) ||
             !dk1_level_software_frontend_init(&rom, scene, level,
                                               96u, 64u,
@@ -51,6 +57,34 @@ int main(int argc, char **argv) {
         }
         if (frontend.player_terrain_ready) ++terrain;
         if (frontend.player_live.used_local_semantics) ++local;
+        if (source_stats.object_list_imported) {
+            const Dk1LevelObjectImport *import_state =
+                &source_stats.primary_import;
+            const uint64_t list_signature =
+                dk1_level_sprite_list_signature(&import_state->list);
+            ++object_lists;
+            object_records += import_state->list.record_count;
+            object_imports += import_state->imported_count;
+            object_unresolved += import_state->unresolved_records +
+                                 import_state->unsupported_records;
+            object_overflow += import_state->overflow_records;
+            hash = dk1_fnv1a64(&list_signature,
+                               sizeof(list_signature), hash);
+            hash = dk1_fnv1a64(&import_state->imported_count,
+                               sizeof(import_state->imported_count), hash);
+            hash = dk1_fnv1a64(&import_state->overflow_records,
+                               sizeof(import_state->overflow_records), hash);
+            for (i = 0u; i < import_state->imported_count; ++i) {
+                const Dk1LevelObjectImportEntry *entry =
+                    &import_state->entries[i];
+                hash = dk1_fnv1a64(&entry->record,
+                                   sizeof(entry->record), hash);
+                hash = dk1_fnv1a64(&entry->type_id,
+                                   sizeof(entry->type_id), hash);
+                hash = dk1_fnv1a64(&entry->callback_pc,
+                                   sizeof(entry->callback_pc), hash);
+            }
+        }
         if (source_stats.barrel_found) ++barrel_records;
         if (source_stats.barrel_spawned) ++barrel_spawns;
         hash = dk1_fnv1a64(&level, sizeof(level), hash);
@@ -72,8 +106,12 @@ int main(int argc, char **argv) {
     }
 
     printf("frontends=%u failed=%zu terrain=%zu local_dispatch=%zu "
+           "object_lists=%zu object_records=%zu object_imports=%zu "
+           "object_unresolved=%zu object_overflow=%zu "
            "barrel_records=%zu barrel_spawns=%zu signature=%016llX\n",
            DK1_SCENE_LEVEL_COUNT, failed, terrain, local,
+           object_lists, object_records, object_imports,
+           object_unresolved, object_overflow,
            barrel_records, barrel_spawns, (unsigned long long)hash);
     free(scene);
     free(pixels);
