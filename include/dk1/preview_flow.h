@@ -8,6 +8,7 @@
 typedef enum Dk1PreviewFlowState {
     DK1_PREVIEW_FLOW_INTRO = 0,
     DK1_PREVIEW_FLOW_TITLE,
+    DK1_PREVIEW_FLOW_MENU,
     DK1_PREVIEW_FLOW_MAP,
     DK1_PREVIEW_FLOW_LEVEL,
     DK1_PREVIEW_FLOW_COMPLETE
@@ -21,6 +22,7 @@ typedef struct Dk1PreviewFlow {
     uint32_t transitions;
     uint16_t selected_level;
     uint8_t intro_page;
+    uint8_t menu_slot;
     bool state_changed;
     bool level_entered;
     bool level_completed;
