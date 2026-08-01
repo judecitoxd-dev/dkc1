@@ -26,6 +26,18 @@ int main(void) {
     assert(stats.primary_import.callback_count ==
            stats.primary_import.imported_count);
     assert(stats.primary_import.scheduler_verified);
+    assert(stats.object_stream_initialized);
+    assert(frontend.level_objects_ready);
+    assert(stats.stream_catalog_count ==
+           frontend.level_objects.catalog_count);
+    assert(stats.stream_active_count ==
+           frontend.level_objects.active_count);
+    assert(stats.stream_active_count <= DK1_PRIMARY_OBJECT_SLOT_COUNT);
+    assert(stats.stream_overflow_count ==
+           frontend.level_objects.overflow_count);
+    assert(frontend.level_objects.callback_count ==
+           frontend.level_objects.active_count);
+    assert(frontend.level_objects.scheduler_verified);
     assert(stats.barrel_found && stats.barrel_spawned);
     assert(stats.barrel_spawn.record_index == 35u);
     assert(stats.barrel_spawn.record.source_pc == 0xBD96F4u);
