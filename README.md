@@ -9,6 +9,9 @@ source recovered line for line.
 
 **Overall engineering progress: 99%**
 
+**Gameplay status: early native prototype; the first level is not yet
+completable.**
+
 The percentage measures completed and tested engineering systems. It is not the
 percentage of gameplay currently playable and is not based on ROM bytes
 converted. One hundred percent remains reserved for an original-compatible,
@@ -19,7 +22,7 @@ playthrough-complete game with progression, saves and audible gameplay audio.
 | Cartridge identity / HiROM mapping | 100% |
 | Reset-vector and boot-entry analysis | 80% |
 | Routine discovery and symbol map | 99% |
-| Semantic portable C | player, terrain, source Barrel, streamed Gnawty and camera object stream |
+| Semantic portable C | player, terrain, damage bridge, source Barrel, streamed Gnawty and camera object stream |
 | PC rendering / widescreen | 99% infrastructure |
 | Input / saves / menus / compatibility | 91% |
 | Audio loading / driver path | 80% |
@@ -30,8 +33,8 @@ call plans. The live frontend executes the grounded state-1 plan and airborne
 state 11 using fixed-point movement and ROM terrain.
 
 Terrain collision includes floor, slope, wall and ceiling probes. Ground, wall
-and ceiling attributes are retained separately, but water, damage, conveyor and
-other material-specific effects remain incomplete.
+and ceiling attributes are retained separately, but water, damage tiles,
+conveyors and other material-specific effects remain incomplete.
 
 ## Source-driven level object import
 
@@ -50,13 +53,13 @@ Normal records use command `1`; a zero command terminates the list. The B5
 definition reader applies field/value assignments and recovers the normal-object
 type from field `$0D45`.
 
-Command `$8200` is now modeled as the call used by `$B5:8052`, not as a terminal
+Command `$8200` is modeled as the call used by `$B5:8052`, not as a terminal
 redirect: the nested definition runs, returns, and parsing resumes at the next
 word pair in the caller. A call-stack cycle guard prevents recursive loops while
 allowing shared definitions to be called independently. Unsupported B5 commands
 remain an explicit boundary because their handlers use different record sizes.
 
-A full Rev 2 ROM catalog regression across all 230 entrance IDs now reports:
+A full Rev 2 ROM catalog regression across all 230 entrance IDs reports:
 
 ```text
 normal records:      10357
@@ -104,7 +107,7 @@ reuse free slots; excess visible records are reported instead of silently lost.
 The whole-cartridge frontend validator includes active record, slot, type and
 callback information in its signature.
 
-The normal Barrel and the first active Gnawty now continue into executable actor
+The normal Barrel and the first active Gnawty continue into executable actor
 runtimes. Other streamed types are catalogued, slotted and dispatched, but their
 individual behavior and rendering remain to be connected.
 
@@ -123,16 +126,23 @@ source Gnawty record
 → scheduler callback $BF:840C
 → walk animation script and original frame data
 → patrol motion with ROM-terrain wall/ledge probes
-→ player overlap, stomp defeat and rebound
+→ stomp defeat and player rebound
+→ side-contact knockback and temporary invulnerability
 → defeated-record persistence
 → OAM and frame-graphics DMA
 → PC render
 ```
 
-Patrol distance, collision boxes, stomp policy and side-contact reporting are
-portable bridge policy for now. Exact callback `$BF:840C`, shared enemy helper
-semantics, player damage/invulnerability and original turn timing remain to be
-translated.
+Side contact now feeds `player_combat_runtime`: a newly accepted hit applies
+fixed-point horizontal/upward knockback, starts a bounded invulnerability timer,
+ignores repeated overlap hits during that timer and flashes the player in the
+software renderer. This is an explicit portable bridge rather than a claim that
+the original shared damage helper, Kong swap and hurt-state timing are complete.
+
+Patrol distance, collision boxes, stomp policy, knockback constants and the
+invulnerability duration remain portable policy. Exact callback `$BF:840C`,
+shared enemy helper semantics, Kong loss/swap and original turn/hurt timing
+remain to be translated.
 
 ## Authentic Barrel path
 
@@ -152,7 +162,7 @@ original level record
 For the normal Barrel in the supported Rev 2 ROM:
 
 | Phase | Animation | First frame | Pieces | DMA bytes |
-|---|---:|---:|---:|---:|
+|---|---:|---:|---:|
 | Idle | `$00D2` | `$1BD4` | 7 | 608 |
 | Held | `$00D8` | `$1C18` | 6 | 576 |
 | Thrown/rolling | `$00DE` | `$1BF8` | 6 | 576 |
@@ -180,11 +190,10 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-There are now **102 automated tests configured**: 101 C tests and one Python
-control-flow test. The definition-stack and full-catalog regressions passed in
-their focused local stage. The new Gnawty identity, runtime and frontend tests
-are configured, but the complete repository suite and remote CI have not yet
-been rerun after this integration.
+There are now **103 automated tests configured**: 102 C tests and one Python
+control-flow test. The new standalone player-combat regression was compiled and
+executed with `-Wall -Wextra -Wpedantic -Werror`. The complete repository suite
+and remote CI have not yet been confirmed after this integration.
 
 ## Validate all scene frontends
 
@@ -193,7 +202,7 @@ been rerun after this integration.
   "rom/Donkey Kong Country (USA) (Rev 2).sfc"
 ```
 
-The validator now includes live Gnawty source index, motion, animation frame and
+The validator includes live Gnawty source index, motion, animation frame and
 callback state in addition to the level-object and Barrel signatures.
 
 ## Interactive preview
@@ -220,8 +229,8 @@ user-provided Rev 2 ROM. No ROM or extracted assets are committed.
 
 ## What still blocks a real 100%
 
-- Translate the exact Gnawty callback/shared enemy helpers and connect player
-  damage, invulnerability and original interaction responses.
+- Translate the exact Gnawty callback/shared enemy helpers, original hurt states,
+  Kong loss/swap and invulnerability timing.
 - Bind remaining streamed enemies, collectibles, signs, effects and completion
   types to executable actor state machines, collisions and rendering.
 - Connect exact original player pickup, carry and throw states/ownership links.
