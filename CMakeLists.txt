@@ -92,6 +92,7 @@ add_library(dk1_core
     src/rom_image.c
     src/rom_terrain.c
     src/save_state.c
+    src/scene_asset_cache.c
     src/scene_memory.c
     src/scene_package_plan.c
     src/scene_recipe.c
@@ -235,6 +236,7 @@ foreach(test_name IN ITEMS
     rom_image
     rom_terrain
     save_state
+    scene_asset_cache
     scene_asset_loading
     scene_package_plan
     scene_recipe
