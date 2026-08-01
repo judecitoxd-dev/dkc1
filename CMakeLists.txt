@@ -17,6 +17,9 @@ add_library(dk1_core
     src/barrel_runtime.c
     src/barrel_live_runtime.c
     src/barrel_scene_runtime.c
+    src/level_sprite_records.c
+    src/level_object_spawn.c
+    src/level_software_frontend.c
     src/object_actor_runtime.c
     src/object_screen_oam.c
     src/object_frame_dma.c
@@ -140,6 +143,9 @@ foreach(test_name IN ITEMS
     barrel_live_runtime
     barrel_scene_runtime
     software_frontend_barrel
+    level_sprite_records
+    level_object_spawn
+    level_software_frontend
     object_actor_runtime
     object_screen_oam
     object_frame_dma
