@@ -1,106 +1,110 @@
 # dk1 — clean-room PC reimplementation
 
-This repository is a clean-room native PC reimplementation of the SNES game identified by the user-provided cartridge dump. It is based on disassembly and behavioral analysis; it is decompilation-like engineering, not Rare's original source recovered line for line.
+This repository is a clean-room native PC reimplementation of the SNES game
+identified by the user-provided cartridge dump. It is based on disassembly and
+behavioral analysis; it is decompilation-like engineering, not Rare's original
+source recovered line for line.
 
 ## Current status
 
-**Overall engineering progress: 98%**
+**Overall engineering progress: 99%**
 
-The percentage measures completed and tested engineering systems. It is not the percentage of gameplay currently playable and is not based on ROM bytes converted. The project remains at 98% because an original-compatible level loop, complete actor behavior, progression and audible DSP output are still absent.
+The percentage measures completed and tested engineering systems. It is not the
+percentage of gameplay currently playable and is not based on ROM bytes
+converted. One hundred percent remains reserved for an original-compatible,
+playthrough-complete game with progression, saves and audible gameplay audio.
 
 | Area | Progress |
 |---|---:|
 | Cartridge identity / HiROM mapping | 100% |
 | Reset-vector and boot-entry analysis | 80% |
-| Routine discovery and symbol map | 98% |
-| Semantic portable C | player dispatcher + terrain envelope + common/live barrel bridge |
+| Routine discovery and symbol map | 99% |
+| Semantic portable C | player, terrain and first source-driven Barrel loop |
 | PC rendering / widescreen | 99% infrastructure |
 | Input / saves / menus / compatibility | 91% |
 | Audio loading / driver path | 80% |
 
-Every entry in the original 87-state player dispatcher remains classified: 84 states have executable local C semantics and states 0, 1 and 20 retain exact call plans. The live frontend currently executes the normal grounded plan and airborne state 11 using fixed-point movement and ROM terrain.
+Every entry in the original 87-state player dispatcher remains classified: 84
+states have executable local C semantics and states 0, 1 and 20 retain exact
+call plans. The live frontend executes the grounded state-1 plan and airborne
+state 11 using fixed-point movement and ROM terrain.
 
-Terrain collision includes floor, slope, wall and ceiling probes. Ground, wall and ceiling attributes are retained separately, but material-specific water, damage, conveyor and neighboring-cell side effects are still unresolved.
+Terrain collision includes floor, slope, wall and ceiling probes. Ground, wall
+and ceiling attributes are retained separately, but water, damage, conveyor and
+other material-specific effects remain incomplete.
 
-## Confirmed object identities
+## Source-driven level object import
 
-The normal object type `$73` is the **Sign**. Its table callback is `$BF:8453`, which advances animation and enters the common object renderer. Supported-ROM validation leaves the Sign active; the older touch-deactivate option remains only as a portable test policy.
-
-The barrel family is catalogued as follows:
-
-| Type | Object | Callback | Idle animation |
-|---:|---|---:|---:|
-| `$22` | Steel Keg | `$BF:CF0C` | `$00D1` |
-| `$23` | Barrel | `$BF:CF0C` | `$00D2` |
-| `$24` | Rope Barrel | `$BF:CF0C` | `$00D3` |
-| `$25` | Oil Drum | `$BF:83A0` | `$00D4` |
-| `$26` | DK Barrel | `$BF:CF0C` | `$00D5` |
-| `$27` | TNT Barrel | `$BF:CF0C` | `$00D6` |
-
-`barrel_runtime` translates the local semantics of all ten states selected by `$BF:CF0C`. It models initialization, held/thrown paths, Steel Keg cleanup, DK Barrel release requests, TNT countdown/explosion requests, break sounds, explosion-script spawning and the Manky Kong reciprocal-link check. Untranslated helpers remain explicit required calls. The Oil Drum is excluded because it has a different callback.
-
-## Live barrel bridge
-
-`barrel_live_runtime` now services enough of those unresolved helpers to run a deterministic portable object loop:
+The original level-object loader at `$FD:FDE9` has now been translated far
+enough to read the normal eight-byte sprite records selected by the pointer
+table at `$BD:8000`:
 
 ```text
-spawn
-→ proximity pickup
-→ held position follows player/facing
-→ throw with 8.8 velocity
-→ gravity and subpixel integration
-→ floor/wall terrain callbacks
-→ rolling or impact
-→ common barrel dispatcher
-→ break / TNT explosion / DK Barrel release request
+word 0: loader command
+word 1: world X
+word 2: world Y
+word 3: B5 object-definition address
 ```
 
-The bridge preserves wrapped 16-bit world X, uses the translated fixed-point integrator, stores floor/wall material attributes and records pickups, throws, landings, wall hits, breaks, explosions and Kong-release requests.
+The B5 definition reader follows redirects, applies field/value assignments and
+recovers the normal-object type from field `$0D45`. Normal records use command
+`1`; a zero command terminates the list.
 
-Behavior confirmed by focused validation:
-
-- A normal Barrel is picked up, carried, thrown and broken against a wall with sound `$14`.
-- A Steel Keg survives the same wall collision and reverses horizontal velocity.
-- A TNT Barrel landing requests destruction, explosion and two effect scripts.
-- A DK Barrel landing requests destruction and releasing the trapped Kong.
-- The Oil Drum is rejected because it uses its separate `$BF:83A0` runtime.
-
-Pickup distance, held offset and the adapter that translates generic terrain callbacks into helper carries are explicitly portable bridge policy. They are not claimed to be exact original helper implementations yet. The next step is binding this module to real level object spawning, the frontend object scheduler, authentic barrel animation/OAM/DMA and player pickup/throw states.
-
-## Barrel scene and frontend integration
-
-`barrel_scene_runtime` now joins the live common-barrel loop to the translated
-animation interpreter, original frame table, OAM builder and frame DMA path.
-For the normal Barrel, the supported Rev 2 ROM produces:
+For Jungle Hijinxs entrance `$0016`, deterministic validation reads:
 
 ```text
-idle animation $D2   → frame $1BD4 → 7 OAM pieces → 608 DMA bytes
-held animation $D8   → frame $1C18 → 6 OAM pieces → 576 DMA bytes
-thrown animation $DE → frame $1BF8 → 6 OAM pieces → 576 DMA bytes
+list source:        $BD:95DC
+records:            66
+list signature:     BE8955E9C89E92DD
+Barrel record:      35
+record source:      $BD:96F4
+world X/Y:          $0986 / $005F
+definition:         $B5:92A9
+type assignment:    $0D45 = $0023
+scheduler callback: $BF:CF0C
 ```
 
-The ROM-aware software frontend exposes `dk1_software_frontend_spawn_barrel`.
-A spawned barrel uses Y as a debug pickup/throw action, follows the live player,
-uses the ROM terrain adapter for floor/wall contacts and is rendered in a
-separate authentic OAM/VRAM pass before the player. This is a deliberate debug
-entry point: level object records do not spawn it automatically yet, and the
-portable pickup radius/held offset are not claimed as exact original helpers.
+`level_object_spawn` places that type in the original primary object pool and
+runs the translated scheduler to verify the callback and pass. The frontend no
+longer needs a manual debug spawn for this object: `level_software_frontend`
+imports the first normal Barrel from the selected entrance and passes its exact
+source coordinates into the existing live Barrel scene.
 
-The authentic player visual path remains connected:
+The X11 frontend and whole-cartridge frontend validator now use the level-aware
+initializer. If an entrance contains a normal Barrel record, it is automatically
+created; entrances without one still initialize normally.
+
+## Authentic Barrel path
+
+The source-driven object continues through the previously translated systems:
 
 ```text
-input
-→ state 1 plan / state 11 local handler
-→ fixed-point movement
-→ ROM terrain contacts
-→ world/camera transform
-→ frame $0330
-→ 12 OAM pieces
-→ two NMI DMA records / 576 graphics bytes
+original level record
+→ B5 definition/type assignment
+→ primary object slot
+→ scheduler callback $BF:CF0C
+→ live pickup/hold/throw bridge
+→ fixed-point motion and ROM terrain
+→ original animation script
+→ original frame layout
+→ OAM and frame graphics DMA
 → PC render
 ```
 
-The bounded SPC700 and clean-room IPL work remains: startup reaches `$FFC0`, the public transfer protocol can upload bytes and the loaded driver can be relaunched at `$05E8`. DSP music and effects are not implemented.
+For the normal Barrel in the supported Rev 2 ROM:
+
+| Phase | Animation | First frame | Pieces | DMA bytes |
+|---|---:|---:|---:|---:|
+| Idle | `$00D2` | `$1BD4` | 7 | 608 |
+| Held | `$00D8` | `$1C18` | 6 | 576 |
+| Thrown/rolling | `$00DE` | `$1BF8` | 6 | 576 |
+
+Y remains a portable pickup/throw bridge until the exact original player carry
+states and ownership helpers are connected. B continues to jump.
+
+The bounded SPC700 and clean-room IPL work remains: startup reaches `$FFC0`, the
+public transfer protocol can upload bytes and the loaded driver can be relaunched
+at `$05E8`. DSP music and effects are not implemented.
 
 ## ROM required locally
 
@@ -118,14 +122,22 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-There are now **94 automated tests configured**: 93 C tests and one Python control-flow test. The live-barrel, barrel-scene and frontend integration tests compile and pass in focused local harnesses with `-Wall -Wextra -Wpedantic -Werror`; the live-barrel harness also passes AddressSanitizer/UndefinedBehaviorSanitizer. The Rev 2 ROM was independently checked for the `$1BD4/$1C18/$1BF8` frame layouts and DMA sizes. The complete 94-test repository suite was not rerun in this stage, and no remote CI result is claimed.
+There are now **97 automated tests configured**: 96 C tests and one Python
+control-flow test. The three new focused paths—sprite-list parsing,
+source-record-to-scheduler spawning and level-aware frontend initialization—pass
+locally with `-Wall -Wextra -Wpedantic -Werror`; parser and scheduler tests also
+pass AddressSanitizer/UndefinedBehaviorSanitizer. The complete 97-test suite was
+not rerun in this stage and no remote CI result is claimed.
 
-## Validate translated gameplay, objects and SPC handoff
+## Validate all scene frontends
 
 ```bash
-./build/dk1_gameplay_validate \
+./build/dk1_frontend_validate \
   "rom/Donkey Kong Country (USA) (Rev 2).sfc"
 ```
+
+The validator now reports `barrel_records` and `barrel_spawns` in addition to
+terrain, live-dispatch and aggregate render signatures.
 
 ## Interactive preview
 
@@ -134,24 +146,28 @@ When X11 is available:
 ```bash
 ./build/dk1_x11 \
   "rom/Donkey Kong Country (USA) (Rev 2).sfc" \
-  0 384 224
+  0x16 384 224
 ```
 
-Q/E or the mapped L/R inputs accelerate the player; Z/B jumps. With the ROM-aware initializer, the player starts on original terrain.
+For Jungle Hijinxs, the frontend prints the imported Barrel record and callback.
+Q/E or mapped L/R accelerates the player, Z/B jumps and U/Y picks up or throws.
 
 ## Accuracy boundary
 
-Object names are corroborated against a public symbolic DKC1 disassembly, while callbacks, state tables, local instructions, animations and deterministic behavior are checked against the supported Rev 2 ROM. No source or asset data from that project is copied into this repository.
+The public symbolic DKC1 disassembly is used only to corroborate labels. Record
+addresses, pointer traversal, definition assignments, callback selection,
+animations, frames and deterministic signatures are checked against the
+user-provided Rev 2 ROM. No ROM or extracted assets are committed.
 
 ## What still blocks a real 100%
 
-- Bind the debug-spawned barrel to actual level object records and the original object scheduler.
-- Connect original player pickup/throw states and exact ownership helpers.
-- Add break/explosion effect actors and audio output to the visible frontend.
-- Expand the live player bridge beyond states 1 and 11 and connect original pickup/throw transitions.
-- Translate the separate Oil Drum callback and original behavior of enemies, collectibles, signs and level-completion actors.
+- Connect exact original player pickup, carry and throw states/ownership links.
+- Import and execute the complete object list, not only the first normal Barrel.
+- Add enemies, collectibles, break/explosion actors and level-completion logic.
 - Implement confirmed material-specific collision effects.
-- Initialize the real two-player object pair and linked objects from level data.
-- Continue the loaded SPC driver into its command/timer loop and implement DSP, BRR, music and effects.
-- Implement level completion, menus, progression and SRAM compatibility.
-- Compare native frame/input/state/object/OAM/VRAM/APUIO traces against an emulator reference.
+- Initialize the real two-Kong object pair and linked objects from level data.
+- Continue the SPC driver command/timer loop and implement DSP, BRR, music and
+  effects.
+- Implement menus, progression, SRAM compatibility and a complete playthrough.
+- Compare native frame/input/state/object/OAM/VRAM/APUIO traces against an
+  emulator reference.
