@@ -1,6 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
 project(dk1_pc LANGUAGES C)
-
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
@@ -16,6 +15,7 @@ add_library(dk1_core
     src/player_final_runtime.c
     src/object_identity.c
     src/barrel_runtime.c
+    src/barrel_live_runtime.c
     src/object_actor_runtime.c
     src/object_screen_oam.c
     src/object_frame_dma.c
@@ -94,7 +94,6 @@ add_library(dk1_core
     src/vram_package.c
 )
 target_include_directories(dk1_core PUBLIC include)
-
 if(MSVC)
     target_compile_options(dk1_core PRIVATE /W4)
 else()
@@ -123,7 +122,6 @@ add_executable(dk1_gameplay_validate src/gameplay_validate.c)
 target_link_libraries(dk1_gameplay_validate PRIVATE dk1_core)
 
 enable_testing()
-
 foreach(test_name IN ITEMS
     player_motion
     player_preview_runtime
@@ -138,6 +136,7 @@ foreach(test_name IN ITEMS
     player_final_runtime
     object_identity
     barrel_runtime
+    barrel_live_runtime
     object_actor_runtime
     object_screen_oam
     object_frame_dma
@@ -220,12 +219,10 @@ foreach(test_name IN ITEMS
     target_link_libraries(test_${test_name} PRIVATE dk1_core)
     add_test(NAME ${test_name} COMMAND test_${test_name})
 endforeach()
-
 find_package(Python3 COMPONENTS Interpreter)
 if(Python3_Interpreter_FOUND)
     add_test(NAME cfg65816 COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_cfg65816.py)
 endif()
-
 find_package(X11)
 if(X11_FOUND)
     add_executable(dk1_x11 src/x11_frontend.c)

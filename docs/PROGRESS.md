@@ -2,56 +2,40 @@
 
 ## Current total: 98% — held intentionally
 
-This stage does **not** increase the headline percentage. Ninety-eight percent
-refers to engineering infrastructure and translated systems, not ninety-eight
-percent playable gameplay. Reaching 100% now requires a complete original-
-compatible level loop rather than more isolated tables.
+This stage does **not** increase the headline percentage. Ninety-eight percent refers to engineering infrastructure and translated systems, not ninety-eight percent playable gameplay. Reaching 100% now requires a complete original-compatible level loop rather than more isolated modules.
 
 ## Completed while remaining at 98%
 
-### Correct identity for type `$73`
+### Live common-barrel bridge
 
-- Confirmed normal object type `$73` as the Sign.
-- Preserved its table callback `$BF:8453` and the existing scheduler → animation
-  → OAM/DMA path.
-- Removed the portable touch-deactivate policy from the supported-ROM actor
-  test and gameplay validator; the Sign remains active after contact.
-- Kept the policy available only as an explicitly non-original host/test option.
+- Added `barrel_live_runtime` on top of the ten-state `$BF:CF0C` dispatcher.
+- Added deterministic spawning for Steel Keg, Barrel, Rope Barrel, DK Barrel and TNT Barrel.
+- Added proximity pickup and a held phase that follows the player's wrapped 16-bit world position and facing direction.
+- Added throwing with `$0300` horizontal and vertical 8.8 velocities.
+- Added barrel gravity `-$0070` with a `-$0600` terminal value and reused the translated fixed-point integration helpers.
+- Added generic terrain callbacks for crossed floors and solid wall probes, preserving contact attributes.
+- Added rolling after a survivable landing and collision dispatch through the existing `D23C`/`D324` result paths.
+- Normal Barrel wall impact produces destruction and sound `$14`.
+- Steel Keg wall impact reverses horizontal velocity instead of destroying the object.
+- TNT landing produces explosion/destruction and two effect-script requests.
+- DK Barrel landing produces destruction and a trapped-Kong release request.
+- The Oil Drum is explicitly rejected because its callback is `$BF:83A0`, outside the common dispatcher.
 
-### Confirmed barrel family catalog
+### Accuracy boundary
 
-- Added identities for Steel Keg `$22`, Barrel `$23`, Rope Barrel `$24`, Oil Drum
-  `$25`, DK Barrel `$26` and TNT Barrel `$27`.
-- Recorded idle animation IDs `$D1-$D6`.
-- Verified that `$22/$23/$24/$26/$27` use callback `$BF:CF0C`.
-- Recorded the Oil Drum's separate callback `$BF:83A0` and excluded it from the
-  common dispatcher runtime.
-
-### Common barrel state dispatcher
-
-- Added `barrel_runtime` for the ten-state table at `$BF:CF17`.
-- Implemented local semantics for handlers `$BF:CF2B`, `$CF38`, `$CF3F`,
-  `$CFCC`, `$D117`, `$D156`, `$D185`, `$D198`, `$D1C7` and `$D1DD`.
-- Covered initialization, motion/animation/render paths, Steel Keg cleanup,
-  break/despawn paths, TNT countdown/explosion, two explosion-script requests,
-  DK Barrel Kong release requests and Manky Kong reciprocal-link validation.
-- Exposed unresolved JSR/JSL helpers through a 64-bit required-call mask.
+Pickup range, held offsets and the adapter from portable terrain callbacks to unresolved original helper carries are host-bridge policy. They are measurable and deterministic, but not claimed to be exact original helper semantics. No percentage increase is justified until the bridge is connected to real level object spawning, the frontend scheduler, player pickup/throw states and authentic object rendering.
 
 ## Validation
 
-- Added `object_identity` and `barrel_runtime` test targets.
-- Configured project validation increases from 89 to 91 tests: 90 C tests plus
-  the Python control-flow test.
-- Both new tests pass locally with `-Wall -Wextra -Wpedantic -Werror`.
-- Supported-ROM gameplay validation now expects an active Sign and deterministic
-  TNT/DK Barrel results rather than a fake Sign disappearance.
-- The complete 91-test suite and remote CI were not run in this stage.
+- Added `barrel_live_runtime` to `dk1_core` and `barrel_live_runtime` to the configured tests.
+- Configured validation increases from 91 to 92 tests: 91 C tests plus the Python control-flow test.
+- The focused live-barrel test passes with `-Wall -Wextra -Wpedantic -Werror` and ASan/UBSan against a dispatcher-compatible local harness.
+- The full repository suite and remote CI were not run in this stage.
 
 ## Next measurable targets
 
-- Connect one common Barrel object to the live scheduler, terrain collision,
-  player pickup/throw state and authentic animation/OAM/DMA path.
+- Bind the live bridge to level object records and the interactive frontend.
+- Build authentic barrel frames/OAM/DMA for each live phase.
+- Connect player pickup, hold and throw states to the live dispatcher.
 - Translate the Oil Drum's separate callback.
-- Expand the live player controller graph beyond states 1 and 11.
-- Implement material side effects and level completion.
-- Continue the SPC driver command/timer path and DSP output.
+- Continue material effects, level completion and SPC/DSP output.
