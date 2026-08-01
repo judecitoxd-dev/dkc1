@@ -7,9 +7,9 @@ completable and the full game is not close to a playable 99%.**
 
 The engineering percentage tracks foundational systems: original level records,
 B5 type definitions, bounded object-pool import, camera-driven slot lifecycle,
-scheduler dispatch, one complete visible Barrel runtime, the first streamed
-enemy family and a portable player-damage bridge. It does **not** measure the
-fraction of levels, enemies, menus, audio or progression that can be played.
+scheduler dispatch, streamed Barrel-family runtimes, the first streamed enemy
+family and a portable player-damage bridge. It does **not** measure the fraction
+of levels, enemies, menus, audio or progression that can be played.
 
 One hundred percent remains reserved for a complete original-compatible game
 loop and repeatable playthrough.
@@ -62,8 +62,8 @@ loop and repeatable playthrough.
   reporting.
 - Uses source records and stable camera-stream slots rather than manual debug
   spawns.
-- The frontend now binds every visible Gnawty up to the original 25 primary
-  object slots instead of bridging only one actor.
+- The frontend binds every visible Gnawty up to the original 25 primary object
+  slots instead of bridging only one actor.
 - Additional runtimes exist only while their source records are streamed; actors
   are released when they leave the camera envelope or are defeated.
 - Preserves defeated source-record state so stomped Gnawties are not recreated by
@@ -76,23 +76,45 @@ loop and repeatable playthrough.
 - Active-runtime counts are refreshed after every enemy step, including the same
   frame in which an actor finishes its defeated state and is released.
 
+### Streamed Barrel family
+
+- Added `level_barrel_pool`, bounded by the original 25 primary object slots.
+- Connects visible Steel Kegs, normal Barrels, Rope Barrels, DK Barrels and TNT
+  Barrels from their original level-list records.
+- Keeps the first known Jungle Hijinxs Barrel embedded for compatibility with
+  existing probes while all other supported source barrels use the new pool.
+- Idle barrels follow source-record camera lifetime. A held, thrown or rolling
+  barrel may continue beyond its source envelope until it is destroyed or moves
+  outside a wider runtime envelope.
+- Reuses the existing Barrel dispatcher, fixed-point motion, ROM terrain,
+  original animation scripts, frame layouts, OAM and graphics DMA.
+- Coordinates the Y-button across every Barrel runtime so only one actor may
+  consume a pickup or throw action during a frame.
+- Destroyed barrels mark their original source records as defeated and are not
+  recreated by ordinary camera movement.
+- Tracks entry, retention, exit, overflow, pickup, throw and destruction counts
+  and contributes pointer-free state to the deterministic frontend signature.
+- The ROM-backed frontend test sweeps Jungle Hijinxs and compares every active
+  supported source record, excluding the compatibility Barrel, with the live
+  streamed pool while requiring zero overflow.
+
 ### Portable frontend lifecycle
 
 - `dk1_software_frontend_dispose` releases every dynamically streamed Gnawty and
-  is safe to call repeatedly or before initialization.
+  Barrel and is safe to call repeatedly or before initialization.
 - Disposal clears active/overflow diagnostics so a restarted level begins from a
   deterministic zero-resource state.
 - The Windows preview disposes streamed actors before replacing the level runtime
   and again during application shutdown.
-- The X11 preview now zero-initializes its frontend and performs the same cleanup
-  on every exit path.
-- A ROM-independent regression test allocates streamed actors, disposes them,
-  checks every slot and calls disposal a second time.
+- The X11 preview zero-initializes its frontend and performs the same cleanup on
+  every exit path.
+- ROM-independent regression tests allocate streamed actors, dispose them, check
+  every slot and call disposal a second time.
 
 ### Player damage and invulnerability bridge
 
 - Added `player_combat_runtime`.
-- Gnawty side contact now applies horizontal/upward fixed-point knockback.
+- Gnawty side contact applies horizontal/upward fixed-point knockback.
 - Starts a bounded invulnerability timer and ignores repeated overlap hits.
 - Flashes the player in the software renderer while invulnerable.
 - Tracks accepted hits, ignored hits and invulnerable frames in deterministic
@@ -100,14 +122,13 @@ loop and repeatable playthrough.
 - This is portable policy; the exact shared damage helper, Kong loss/swap,
   original hurt states and timing remain untranslated.
 
-### Level-aware frontend and Barrel
+### Level-aware frontend
 
 - Initializes the bounded import and live camera stream.
-- Connects every active streamed Gnawty to executable enemy runtimes within the
-  original primary-pool limit.
-- Spawns the first normal Barrel source record into the executable scene runtime.
-- The Barrel continues through pickup/hold/throw, fixed-point motion, ROM
-  terrain, original animation, frame layout, OAM/DMA and PC rendering.
+- Connects active streamed Gnawties and supported Barrel-family records to
+  executable runtimes within the original primary-pool limit.
+- The current actors run through portable collision, original animation,
+  frame-layout, OAM/DMA and PC rendering paths.
 
 ## Deterministic Jungle Hijinxs Barrel result
 
@@ -129,21 +150,21 @@ callback=BFCF0C
 
 ## Validation
 
-- Configured validation contains 105 tests: 104 C executables plus one Python
+- Configured validation contains 106 tests: 105 C executables plus one Python
   CFG test.
-- The public Linux workflow compiles every target and runs the 87 tests that do
-  not require copyrighted ROM bytes; all 87 passed after the frontend-lifecycle
+- The public Linux workflow compiles every target and runs the 88 tests that do
+  not require copyrighted ROM bytes; all 88 passed after the streamed-Barrel
   integration.
 - The scheduler special-pass fixture agrees with the dispatch table: types 1 and
   2 both carry the special-pass attribute and both callbacks are visited.
 - Python tool syntax validation passes in the same workflow.
 - The Windows x64 workflow configures with MSVC, builds `dk1_win32`, packages it
-  and uploads the preview artifact successfully after the restart-cleanup change.
+  and uploads the preview artifact successfully with the streamed Barrel pool.
 - The 18 ROM-backed tests remain configured and are intentionally omitted from
   public CI. They run locally when `DK1_TEST_ROM` points to a legal USA Rev 2
   cartridge image.
-- Remote CI therefore validates the portable implementation and build system,
-  while source-ROM fidelity tests still require a locally supplied legal ROM.
+- Remote CI validates the portable implementation and build system, while
+  source-ROM fidelity tests still require a locally supplied legal ROM.
 
 ## Required for a real 100%
 
@@ -152,6 +173,7 @@ callback=BFCF0C
 - Bind the remaining streamed enemy types, collectibles, signs, effects and
   level-completion objects to executable actor state machines, collisions and
   visible rendering.
+- Translate Oil Drum behavior and exact per-type Barrel material/collision rules.
 - Exact player carry/throw states and object ownership links.
 - Material-specific collision behavior.
 - Real two-Kong and linked-object initialization.
