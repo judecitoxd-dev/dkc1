@@ -56,6 +56,12 @@ void dk1_preview_flow_step(Dk1PreviewFlow *flow,
 
     if (flow->state == DK1_PREVIEW_FLOW_TITLE) {
         if (confirm_pressed(pressed))
+            enter_state(flow, DK1_PREVIEW_FLOW_MENU);
+        return;
+    }
+
+    if (flow->state == DK1_PREVIEW_FLOW_MENU) {
+        if (confirm_pressed(pressed))
             enter_state(flow, DK1_PREVIEW_FLOW_MAP);
         return;
     }
@@ -84,6 +90,7 @@ const char *dk1_preview_flow_state_name(Dk1PreviewFlowState state) {
     switch (state) {
     case DK1_PREVIEW_FLOW_INTRO: return "intro";
     case DK1_PREVIEW_FLOW_TITLE: return "title";
+    case DK1_PREVIEW_FLOW_MENU: return "menu";
     case DK1_PREVIEW_FLOW_MAP: return "map";
     case DK1_PREVIEW_FLOW_LEVEL: return "level";
     case DK1_PREVIEW_FLOW_COMPLETE: return "complete";
