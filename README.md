@@ -22,7 +22,7 @@ playthrough-complete game with progression, saves and audible gameplay audio.
 | Cartridge identity / HiROM mapping | 100% |
 | Reset-vector and boot-entry analysis | 80% |
 | Routine discovery and symbol map | 99% |
-| Semantic portable C | player, terrain, damage bridge, source Barrel, streamed Gnawty and camera object stream |
+| Semantic portable C | player, terrain, damage bridge, streamed Barrel family, streamed Gnawty and camera object lifecycle |
 | PC rendering / widescreen | 99% infrastructure |
 | Input / saves / menus / compatibility | 91% |
 | Audio loading / driver path | 80% |
@@ -91,7 +91,7 @@ and explicitly counts unresolved, unsupported and overflow records.
 ## Camera-driven object lifecycle
 
 `level_object_stream` builds a resolved catalog for every supported normal
-record in an entrance. Each frontend frame now:
+record in an entrance. Each frontend frame performs:
 
 ```text
 camera envelope
@@ -107,18 +107,16 @@ reuse free slots; excess visible records are reported instead of silently lost.
 The whole-cartridge frontend validator includes active record, slot, type and
 callback information in its signature.
 
-The normal Barrel and the first active Gnawty continue into executable actor
-runtimes. Other streamed types are catalogued, slotted and dispatched, but their
-individual behavior and rendering remain to be connected.
+Executable bindings currently cover every visible Gnawty and the supported
+Barrel family. Other streamed types are catalogued, slotted and dispatched, but
+their individual behavior and rendering remain to be connected.
 
-## First live enemy: Gnawty
+## First live enemy family: Gnawty
 
 Gnawty type `$004D`, callback `$BF:840C`, and walk/turn/dead animation IDs
-`$015A/$015B/$015C` are connected to a portable live runtime. The camera stream
-selects the source record and original primary slot; the scheduler callback is
-verified every frame before the enemy advances.
-
-The current bridge provides:
+`$015A/$015B/$015C` are connected to portable live runtimes. The camera stream
+selects each source record and original primary slot; the scheduler callback is
+verified before the enemy advances.
 
 ```text
 source Gnawty record
@@ -133,42 +131,64 @@ source Gnawty record
 → PC render
 ```
 
-Side contact now feeds `player_combat_runtime`: a newly accepted hit applies
+The frontend binds all visible Gnawties up to the original 25 primary slots.
+Dynamically allocated actors are retained by source record, released when they
+leave the camera envelope or finish defeat, and included in deterministic
+signatures without hashing host pointer values.
+
+Side contact feeds `player_combat_runtime`: a newly accepted hit applies
 fixed-point horizontal/upward knockback, starts a bounded invulnerability timer,
 ignores repeated overlap hits during that timer and flashes the player in the
-software renderer. This is an explicit portable bridge rather than a claim that
-the original shared damage helper, Kong swap and hurt-state timing are complete.
+software renderer. This remains a portable bridge rather than a claim that the
+original shared damage helper, Kong swap and hurt-state timing are complete.
 
-Patrol distance, collision boxes, stomp policy, knockback constants and the
-invulnerability duration remain portable policy. Exact callback `$BF:840C`,
-shared enemy helper semantics, Kong loss/swap and original turn/hurt timing
-remain to be translated.
+## Streamed Barrel family
 
-## Authentic Barrel path
+The executable Barrel path is now shared by a bounded camera-driven pool:
 
 ```text
 original level record
 → B5 definition/type assignment
-→ primary object slot
-→ scheduler callback $BF:CF0C
-→ live pickup/hold/throw bridge
+→ stable primary object slot
+→ scheduler callback
+→ pickup/hold/throw ownership bridge
 → fixed-point motion and ROM terrain
-→ original animation script
-→ original frame layout
-→ OAM and frame graphics DMA
+→ original animation script and frame layout
+→ OAM and frame-graphics DMA
 → PC render
 ```
+
+The pool supports Steel Kegs, normal Barrels, Rope Barrels, DK Barrels and TNT
+Barrels. Oil Drum behavior remains a separate untranslated boundary.
+
+The first known Jungle Hijinxs normal Barrel remains embedded for compatibility
+with existing probes. Other supported visible records are bound to the new
+25-slot pool. Idle barrels follow source-record camera lifetime; held, thrown or
+rolling barrels may continue beyond the source envelope until destroyed or
+outside a wider runtime envelope. A single Y-button action can be consumed by
+only one Barrel runtime in a frame, including the compatibility Barrel.
+
+Destroyed barrels mark their original source record and are not recreated by
+ordinary camera movement. Pool lifecycle, pickup, throw, destruction and
+overflow data participate in the deterministic frontend signature.
 
 For the normal Barrel in the supported Rev 2 ROM:
 
 | Phase | Animation | First frame | Pieces | DMA bytes |
-|---|---:|---:|---:|
+|---|---:|---:|---:|---:|
 | Idle | `$00D2` | `$1BD4` | 7 | 608 |
 | Held | `$00D8` | `$1C18` | 6 | 576 |
 | Thrown/rolling | `$00DE` | `$1BF8` | 6 | 576 |
 
 Y remains a portable pickup/throw bridge until the exact original player carry
 states and ownership helpers are connected. B continues to jump.
+
+## Portable frontend lifecycle
+
+`dk1_software_frontend_dispose` releases dynamically streamed Gnawties and
+Barrels and is safe before initialization or after a previous cleanup. The
+Windows frontend calls it before replacing a level runtime and during shutdown;
+the X11 frontend uses the same cleanup on every exit path.
 
 The bounded SPC700 and clean-room IPL work remains: startup reaches `$FFC0`, the
 public transfer protocol can upload bytes and the loaded driver can be relaunched
@@ -190,10 +210,14 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-There are now **103 automated tests configured**: 102 C tests and one Python
-control-flow test. The new standalone player-combat regression was compiled and
-executed with `-Wall -Wextra -Wpedantic -Werror`. The complete repository suite
-and remote CI have not yet been confirmed after this integration.
+There are **106 automated tests configured**: 105 C executables and one Python
+control-flow test. Public CI compiles every target and runs the 88 tests that do
+not require copyrighted ROM bytes; all 88 currently pass. The 18 ROM-backed
+fidelity tests remain configured for a locally supplied legal USA Rev 2 ROM.
+
+The Windows x64 workflow configures with MSVC, builds `dk1_win32`, packages the
+preview and uploads a ZIP artifact. The Linux workflow also checks Python tool
+syntax.
 
 ## Validate all scene frontends
 
@@ -202,8 +226,8 @@ and remote CI have not yet been confirmed after this integration.
   "rom/Donkey Kong Country (USA) (Rev 2).sfc"
 ```
 
-The validator includes live Gnawty source index, motion, animation frame and
-callback state in addition to the level-object and Barrel signatures.
+The validator includes camera-object catalog state, Gnawty actors, Barrel-family
+runtime state, player combat state and original rendering-path signatures.
 
 ## Interactive preview
 
@@ -216,9 +240,9 @@ When X11 is available:
 ```
 
 For Jungle Hijinxs, the frontend imports the original object catalog, streams
-visible objects, connects the first active Gnawty, and spawns the normal Barrel
-from its source record. Q/E or mapped L/R accelerates the player, Z/B jumps and
-U/Y picks up or throws.
+visible objects and connects visible Gnawties and supported Barrel-family source
+records. Q/E or mapped L/R accelerates the player, Z/B jumps and U/Y picks up or
+throws.
 
 ## Accuracy boundary
 
@@ -233,6 +257,7 @@ user-provided Rev 2 ROM. No ROM or extracted assets are committed.
   Kong loss/swap and invulnerability timing.
 - Bind remaining streamed enemies, collectibles, signs, effects and completion
   types to executable actor state machines, collisions and rendering.
+- Translate Oil Drum behavior and exact per-type Barrel material rules.
 - Connect exact original player pickup, carry and throw states/ownership links.
 - Implement confirmed material-specific collision effects.
 - Initialize the real two-Kong object pair and linked objects from level data.
