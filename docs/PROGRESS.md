@@ -7,14 +7,38 @@ completable and the full game is not close to a playable 99%.**
 
 The engineering percentage tracks foundational systems: original level records,
 B5 type definitions, bounded object-pool import, camera-driven slot lifecycle,
-scheduler dispatch, streamed Barrel-family runtimes, the first streamed enemy
-family and a portable player-damage bridge. It does **not** measure the fraction
-of levels, enemies, menus, audio or progression that can be played.
+ROM texture/palette loading, scheduler dispatch, streamed Barrel-family
+runtimes, the first streamed enemy family and a portable player-damage bridge.
+It does **not** measure the fraction of levels, enemies, menus, audio or
+progression that can be played.
 
 One hundred percent remains reserved for a complete original-compatible game
 loop and repeatable playthrough.
 
 ## Completed in the current 99% stage
+
+### ROM texture and palette loading
+
+- ROM identity validation is followed by real scene asset loading; the cartridge
+  is not used only as a checksum gate.
+- Reads each scene's original VRAM-package plan from the legal user-provided ROM.
+- Applies direct ROM transfers and the translated DKC graphics decompressor into
+  a host-side 64 KiB SNES VRAM image.
+- Applies original CGRAM palette uploads, including inverted uploads and special
+  palette patches.
+- Background tiles, object/player frame graphics and palettes are decoded from
+  those loaded VRAM/CGRAM images by the PC renderer.
+- Added `Dk1SceneAssetStats` for package count, direct/compressed records, DMA and
+  decompressed bytes, palette uploads/colors, nonzero VRAM/CGRAM content and
+  deterministic VRAM/palette signatures.
+- `dk1_scene_probe` now renders a scene and reports the complete asset-load
+  accounting.
+- `dk1_scene_validate` totals texture and palette loading across all scene IDs.
+- The X11 preview reports asset-load state and displays it in the window title.
+- Added a ROM-backed Jungle Hijinxs regression that loads the scene twice and
+  verifies deterministic texture, palette and complete scene signatures.
+- Persistent on-disk asset caching remains pending; current loading happens from
+  the ROM into memory whenever the scene runtime is initialized.
 
 ### Original level sprite-list parser
 
@@ -125,6 +149,7 @@ loop and repeatable playthrough.
 ### Level-aware frontend
 
 - Initializes the bounded import and live camera stream.
+- Loads original scene texture packages and palettes before rendering.
 - Connects active streamed Gnawties and supported Barrel-family records to
   executable runtimes within the original primary-pool limit.
 - The current actors run through portable collision, original animation,
@@ -150,24 +175,24 @@ callback=BFCF0C
 
 ## Validation
 
-- Configured validation contains 106 tests: 105 C executables plus one Python
+- Configured validation contains 107 tests: 106 C executables plus one Python
   CFG test.
-- The public Linux workflow compiles every target and runs the 88 tests that do
-  not require copyrighted ROM bytes; all 88 passed after the streamed-Barrel
-  integration.
-- The scheduler special-pass fixture agrees with the dispatch table: types 1 and
-  2 both carry the special-pass attribute and both callbacks are visited.
+- The public Linux workflow compiles every target, including the ROM-backed
+  scene asset regression, and runs the 88 tests that do not require copyrighted
+  ROM bytes; all 88 passed after the asset-loading integration.
 - Python tool syntax validation passes in the same workflow.
 - The Windows x64 workflow configures with MSVC, builds `dk1_win32`, packages it
-  and uploads the preview artifact successfully with the streamed Barrel pool.
-- The 18 ROM-backed tests remain configured and are intentionally omitted from
+  and uploads the preview artifact successfully after the scene asset changes.
+- The 19 ROM-backed tests remain configured and are intentionally omitted from
   public CI. They run locally when `DK1_TEST_ROM` points to a legal USA Rev 2
   cartridge image.
-- Remote CI validates the portable implementation and build system, while
-  source-ROM fidelity tests still require a locally supplied legal ROM.
+- Remote CI validates compilation and the portable test suite. Exact ROM asset
+  values and signatures still require a locally supplied legal ROM.
 
 ## Required for a real 100%
 
+- Add a persistent local asset cache and translate remaining dynamic graphics
+  upload paths used during transitions and gameplay.
 - Translate the exact Gnawty callback/shared enemy helpers, original hurt states,
   Kong loss/swap and invulnerability timing.
 - Bind the remaining streamed enemy types, collectibles, signs, effects and
