@@ -130,7 +130,7 @@ static void draw_shell_overlay(HDC dc, const Dk1Win32App *app,
             subtitle = "Original visuals are loaded from your legal ROM";
         } else if (app->flow.intro_page >= 2u) {
             title = "KONGO JUNGLE";
-            subtitle = "A provisional intro, map and first-level slice";
+            subtitle = "A provisional intro, menu, map and first-level slice";
         }
         draw_centered_text(dc, &title_area, title, 28 * font_scale,
                            FW_BOLD, RGB(255, 232, 96));
@@ -144,10 +144,20 @@ static void draw_shell_overlay(HDC dc, const Dk1Win32App *app,
     if (app->flow.state == DK1_PREVIEW_FLOW_TITLE) {
         draw_centered_text(dc, &title_area, "DONKEY KONG COUNTRY",
                            30 * font_scale, FW_BOLD, RGB(255, 220, 64));
-        draw_centered_text(dc, &subtitle_area, "1 PLAYER",
+        draw_centered_text(dc, &subtitle_area, "PRESS START",
                            18 * font_scale, FW_BOLD, RGB(255, 255, 255));
-        draw_centered_text(dc, &prompt_area, "PRESS ENTER",
+        draw_centered_text(dc, &prompt_area, "ENTER / Z",
                            15 * font_scale, FW_BOLD, RGB(255, 255, 255));
+        return;
+    }
+
+    if (app->flow.state == DK1_PREVIEW_FLOW_MENU) {
+        draw_centered_text(dc, &title_area, "GAME SELECT",
+                           27 * font_scale, FW_BOLD, RGB(255, 228, 92));
+        draw_centered_text(dc, &subtitle_area, "> GAME 1 - NEW GAME <",
+                           18 * font_scale, FW_BOLD, RGB(255, 255, 255));
+        draw_centered_text(dc, &prompt_area, "ENTER / Z: CONTINUE",
+                           13 * font_scale, FW_BOLD, RGB(255, 255, 255));
         return;
     }
 
@@ -312,6 +322,9 @@ static void fill_shell_frame(Dk1Win32App *app) {
     if (app->flow.state == DK1_PREVIEW_FLOW_TITLE) {
         top = (Dk1Rgba8){12u, 42u, 74u, 255u};
         bottom = (Dk1Rgba8){8u, 20u, 36u, 255u};
+    } else if (app->flow.state == DK1_PREVIEW_FLOW_MENU) {
+        top = (Dk1Rgba8){70u, 34u, 20u, 255u};
+        bottom = (Dk1Rgba8){28u, 18u, 12u, 255u};
     } else if (app->flow.state == DK1_PREVIEW_FLOW_MAP) {
         top = (Dk1Rgba8){18u, 88u, 60u, 255u};
         bottom = (Dk1Rgba8){42u, 118u, 64u, 255u};
