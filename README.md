@@ -20,6 +20,7 @@ playthrough-complete game with progression, saves and audible gameplay audio.
 | Area | Progress |
 |---|---:|
 | Cartridge identity / HiROM mapping | 100% |
+| ROM texture/palette loading | working per scene, persistent cache still pending |
 | Reset-vector and boot-entry analysis | 80% |
 | Routine discovery and symbol map | 99% |
 | Semantic portable C | player, terrain, damage bridge, streamed Barrel family, streamed Gnawty and camera object lifecycle |
@@ -35,6 +36,33 @@ state 11 using fixed-point movement and ROM terrain.
 Terrain collision includes floor, slope, wall and ceiling probes. Ground, wall
 and ceiling attributes are retained separately, but water, damage tiles,
 conveyors and other material-specific effects remain incomplete.
+
+## The ROM is also the asset source
+
+The cartridge file is **not only checked for identity**. After validating the
+USA Rev 2 image, each scene loader reads the original scene recipe and then:
+
+```text
+legal user ROM
+→ scene VRAM-package list
+→ direct ROM transfers and DKC decompression
+→ host-side 64 KiB SNES VRAM image
+→ original CGRAM palette uploads
+→ tile, tilemap, sprite-frame and palette decoding
+→ PC rendering
+```
+
+No converted graphics are committed to the repository. Background tiles,
+object/player frame graphics and palettes are loaded from the user's ROM into
+host memory when the scene starts. A future persistent local cache can avoid
+repeating decompression, but it is an optimization rather than a requirement for
+rendering.
+
+`Dk1SceneAssetStats` records package count, direct/compressed records, DMA bytes,
+decompressed bytes, palette uploads, nonzero VRAM/palette contents and stable
+VRAM/CGRAM signatures. `dk1_scene_probe` prints those values and writes a PPM
+render, while `dk1_scene_validate` totals asset loading across all scene IDs.
+The X11 preview also reports whether textures and palettes were loaded.
 
 ## Source-driven level object import
 
@@ -144,7 +172,7 @@ original shared damage helper, Kong swap and hurt-state timing are complete.
 
 ## Streamed Barrel family
 
-The executable Barrel path is now shared by a bounded camera-driven pool:
+The executable Barrel path is shared by a bounded camera-driven pool:
 
 ```text
 original level record
@@ -210,14 +238,27 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-There are **106 automated tests configured**: 105 C executables and one Python
+There are **107 automated tests configured**: 106 C executables and one Python
 control-flow test. Public CI compiles every target and runs the 88 tests that do
-not require copyrighted ROM bytes; all 88 currently pass. The 18 ROM-backed
-fidelity tests remain configured for a locally supplied legal USA Rev 2 ROM.
+not require copyrighted ROM bytes; all 88 currently pass. The 19 ROM-backed
+fidelity tests, including the new scene asset-loading regression, remain
+configured for a locally supplied legal USA Rev 2 ROM.
 
 The Windows x64 workflow configures with MSVC, builds `dk1_win32`, packages the
 preview and uploads a ZIP artifact. The Linux workflow also checks Python tool
 syntax.
+
+## Inspect a rendered scene and asset load
+
+```bash
+./build/dk1_scene_probe \
+  "rom/Donkey Kong Country (USA) (Rev 2).sfc" \
+  0x16 0 0 384 224 jungle.ppm
+```
+
+The output reports whether textures and palettes were loaded, VRAM package and
+record counts, compressed/direct transfers, byte totals and deterministic asset
+signatures.
 
 ## Validate all scene frontends
 
@@ -239,10 +280,10 @@ When X11 is available:
   0x16 384 224
 ```
 
-For Jungle Hijinxs, the frontend imports the original object catalog, streams
-visible objects and connects visible Gnawties and supported Barrel-family source
-records. Q/E or mapped L/R accelerates the player, Z/B jumps and U/Y picks up or
-throws.
+For Jungle Hijinxs, the frontend loads the original texture packages and
+palettes, imports the original object catalog, streams visible objects and
+connects visible Gnawties and supported Barrel-family source records. Q/E or
+mapped L/R accelerates the player, Z/B jumps and U/Y picks up or throws.
 
 ## Accuracy boundary
 
@@ -253,6 +294,8 @@ user-provided Rev 2 ROM. No ROM or extracted assets are committed.
 
 ## What still blocks a real 100%
 
+- Add a persistent local asset cache and complete the remaining dynamic graphics
+  upload paths used during gameplay transitions.
 - Translate the exact Gnawty callback/shared enemy helpers, original hurt states,
   Kong loss/swap and invulnerability timing.
 - Bind remaining streamed enemies, collectibles, signs, effects and completion
