@@ -10,6 +10,7 @@
 #include "dk1/host_input.h"
 #include "dk1/level_object_stream.h"
 #include "dk1/oam_image.h"
+#include "dk1/player_combat_runtime.h"
 #include "dk1/player_live_runtime.h"
 #include "dk1/player_preview_runtime.h"
 #include "dk1/player_terrain_runtime.h"
@@ -25,6 +26,7 @@ typedef struct Dk1SoftwareFrontend {
     Dk1PlayerVisualStats player_visual;
     Dk1PlayerPreviewRuntime player_preview;
     Dk1PlayerLiveRuntime player_live;
+    Dk1PlayerCombatRuntime player_combat;
     Dk1PlayerTerrainRuntime player_terrain;
     Dk1BarrelSceneRuntime barrel;
     Dk1GnawtyRuntime gnawty;
