@@ -119,10 +119,61 @@ bool dk1_software_frontend_spawn_barrel(Dk1SoftwareFrontend *f,
     return f->barrel_ready;
 }
 
+bool dk1_software_frontend_sync_gnawty(Dk1SoftwareFrontend *f) {
+    size_t i;
+    if (f == NULL || f->source_rom == NULL)
+        return false;
+    if (!f->level_objects_ready) {
+        f->gnawty.active = false;
+        f->gnawty_ready = false;
+        return true;
+    }
+
+    if (f->gnawty_ready) {
+        for (i = 0u; i < f->level_objects.catalog_count; ++i) {
+            const Dk1LevelObjectStreamEntry *entry =
+                &f->level_objects.entries[i];
+            if (!entry->active || entry->type_id != DK1_OBJECT_TYPE_GNAWTY ||
+                entry->record_index != f->gnawty_record_index)
+                continue;
+            if (entry->slot != f->gnawty.slot) {
+                if (f->gnawty.slot < DK1_OBJECT_SLOT_COUNT)
+                    f->gnawty.scheduler.type_id[f->gnawty.slot] = 0u;
+                f->gnawty.slot = entry->slot;
+                f->gnawty.scheduler.type_id[entry->slot] =
+                    DK1_OBJECT_TYPE_GNAWTY;
+            }
+            return true;
+        }
+        if (f->gnawty.slot < DK1_OBJECT_SLOT_COUNT)
+            f->gnawty.scheduler.type_id[f->gnawty.slot] = 0u;
+        f->gnawty.active = false;
+        f->gnawty_ready = false;
+    }
+
+    for (i = 0u; i < f->level_objects.catalog_count; ++i) {
+        const Dk1LevelObjectStreamEntry *entry =
+            &f->level_objects.entries[i];
+        if (!entry->active || entry->type_id != DK1_OBJECT_TYPE_GNAWTY ||
+            entry->record_index >= DK1_LEVEL_OBJECT_STREAM_MAX_ENTRIES ||
+            f->defeated_level_records[entry->record_index])
+            continue;
+        if (!dk1_gnawty_spawn(&f->gnawty, f->source_rom, entry->slot,
+                               entry->record.world_x,
+                               entry->record.world_y, false))
+            return false;
+        f->gnawty_record_index = entry->record_index;
+        f->gnawty_ready = true;
+        return true;
+    }
+    return true;
+}
+
 bool dk1_software_frontend_step(const Dk1SceneMemory *s, uint16_t held,
                                 Dk1SoftwareFrontend *f) {
     Dk1DynamicStreamUpdate u;
     Dk1BarrelLiveResult barrel_result;
+    Dk1GnawtyStepResult gnawty_result;
     uint32_t maxx;
     if (s == NULL || f == NULL) return false;
     dk1_host_input_update(&f->input, held);
@@ -134,9 +185,22 @@ bool dk1_software_frontend_step(const Dk1SceneMemory *s, uint16_t held,
             &f->level_objects, f->runtime.view.camera_x,
             f->runtime.view.width, 128u, 128u))
         return false;
+    if (!dk1_software_frontend_sync_gnawty(f))
+        return false;
     dk1_player_live_step(&f->player_live, &f->player_preview,
         f->player_terrain_ready ? &f->player_terrain : NULL,
         held, f->input.pressed);
+    if (f->gnawty_ready && f->gnawty.active) {
+        if (!dk1_gnawty_step(&f->gnawty, f->source_rom,
+                f->player_terrain_ready ? &f->player_terrain : NULL,
+                &f->player_preview, &gnawty_result))
+            return false;
+        if (gnawty_result.stomped &&
+            f->gnawty_record_index < DK1_LEVEL_OBJECT_STREAM_MAX_ENTRIES)
+            f->defeated_level_records[f->gnawty_record_index] = true;
+        if (!f->gnawty.active)
+            f->gnawty_ready = false;
+    }
     if (f->barrel_ready && f->barrel.live.active) {
         if (!dk1_barrel_scene_step(&f->barrel, f->source_rom,
                 f->player_terrain_ready ? &f->player_terrain : NULL,
@@ -189,6 +253,16 @@ bool dk1_software_frontend_render(const Dk1RomImage *r,
                             &s->cgram, 0u, 3u, d))
             return false;
     }
+    if (f->gnawty_ready && f->gnawty.active) {
+        if (!dk1_gnawty_build_visual(
+                &f->gnawty, r, &s->vram,
+                f->runtime.view.camera_x, f->runtime.view.camera_y,
+                f->player_vertical_origin, f->obsel))
+            return false;
+        if (!dk1_oam_render(&f->gnawty.oam, f->obsel, &f->gnawty.vram,
+                            &s->cgram, 0u, 3u, d))
+            return false;
+    }
     if (!update_visual(r, s, f)) return false;
     sv = f->player_visual_ready ? &f->player_vram : &s->vram;
     if (!dk1_oam_render(&f->oam, f->obsel, sv, &s->cgram, 0u, 3u, d))
@@ -218,6 +292,14 @@ uint64_t dk1_software_frontend_signature(const Dk1SoftwareFrontend *f) {
                     sizeof(f->level_objects_ready), h);
     if (f->level_objects_ready)
         h = dk1_fnv1a64(&f->level_objects, sizeof(f->level_objects), h);
+    h = dk1_fnv1a64(&f->defeated_level_records,
+                    sizeof(f->defeated_level_records), h);
+    h = dk1_fnv1a64(&f->gnawty_ready, sizeof(f->gnawty_ready), h);
+    if (f->gnawty_ready) {
+        h = dk1_fnv1a64(&f->gnawty_record_index,
+                        sizeof(f->gnawty_record_index), h);
+        h = dk1_fnv1a64(&f->gnawty, sizeof(f->gnawty), h);
+    }
     h = dk1_fnv1a64(&f->player_preview, sizeof(f->player_preview), h);
     h = dk1_fnv1a64(&f->player_live, sizeof(f->player_live), h);
     h = dk1_fnv1a64(&f->player_terrain.last_attributes,
