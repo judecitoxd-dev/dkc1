@@ -10,6 +10,10 @@ int main(void) {
     Dk1SceneMemory scene;
     Dk1SoftwareFrontend frontend;
     Dk1LevelSoftwareFrontendStats stats;
+    Dk1GnawtyStepResult gnawty_result;
+    size_t i;
+    size_t gnawty_catalog_index = 0u;
+    bool gnawty_catalogued = false;
     if (path == NULL)
         path = "/mnt/data/Donkey Kong Country (USA) (Rev 2).sfc";
     assert(dk1_rom_load_file(path, &owned, &rom));
@@ -64,6 +68,50 @@ int main(void) {
                                          frontend.obsel));
     assert(frontend.barrel.visual.pieces == 7u);
     assert(frontend.barrel.visual.dma_bytes == 608u);
+
+    for (i = 0u; i < frontend.level_objects.catalog_count; ++i) {
+        if (frontend.level_objects.entries[i].type_id ==
+            DK1_OBJECT_TYPE_GNAWTY) {
+            gnawty_catalogued = true;
+            gnawty_catalog_index = i;
+            break;
+        }
+    }
+    assert(gnawty_catalogued);
+    {
+        const Dk1LevelObjectStreamEntry *source =
+            &frontend.level_objects.entries[gnawty_catalog_index];
+        const uint16_t camera_x = source->record.world_x > 48u ?
+            (uint16_t)(source->record.world_x - 48u) : 0u;
+        frontend.runtime.view.camera_x = camera_x;
+        assert(dk1_level_object_stream_update(&frontend.level_objects,
+                                               camera_x, 96u,
+                                               128u, 128u));
+        assert(dk1_software_frontend_sync_gnawty(&frontend));
+        assert(frontend.gnawty_ready);
+        assert(frontend.gnawty_record_index == source->record_index);
+        assert(frontend.gnawty.type_id == DK1_OBJECT_TYPE_GNAWTY);
+        assert(frontend.gnawty.motion.world_x == source->record.world_x);
+        assert(frontend.gnawty.motion.world_y == source->record.world_y);
+    }
+    for (i = 0u; i < 32u && frontend.gnawty.animation.frame == 0u; ++i) {
+        assert(dk1_gnawty_step(&frontend.gnawty, &rom,
+                               frontend.player_terrain_ready ?
+                                   &frontend.player_terrain : NULL,
+                               NULL, &gnawty_result));
+    }
+    assert(frontend.gnawty.callback_verified);
+    assert(frontend.gnawty.callback_pc == DK1_GNAWTY_CALLBACK_PC);
+    assert(frontend.gnawty.animation.frame != 0u);
+    assert(dk1_gnawty_build_visual(&frontend.gnawty, &rom,
+                                    &scene.vram,
+                                    frontend.runtime.view.camera_x,
+                                    frontend.runtime.view.camera_y,
+                                    frontend.player_vertical_origin,
+                                    frontend.obsel));
+    assert(frontend.gnawty.visual_ready);
+    assert(frontend.gnawty.visual.pieces > 0u);
+    assert(frontend.gnawty.visual.dma_bytes > 0u);
 
     dk1_rom_free(&owned);
     return 0;
