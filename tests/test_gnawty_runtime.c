@@ -39,6 +39,14 @@ int main(void) {
     assert(gnawty.visual.dma_bytes > 0u);
 
     dk1_player_preview_init(&player, gnawty.motion.world_x,
+                            gnawty.motion.world_y);
+    player.motion.velocity_y = 0;
+    assert(dk1_gnawty_step(&gnawty, &rom, NULL, &player, &result));
+    assert(result.player_hurt);
+    assert(!result.stomped);
+    assert(gnawty.phase == DK1_GNAWTY_WALKING);
+
+    dk1_player_preview_init(&player, gnawty.motion.world_x,
                             (int16_t)(gnawty.motion.world_y + 14));
     player.motion.velocity_y = -0x0100;
     player.airborne = true;
