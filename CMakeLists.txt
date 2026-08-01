@@ -14,6 +14,7 @@ add_library(dk1_core
     src/player_visual_runtime.c
     src/player_final_runtime.c
     src/object_identity.c
+    src/gnawty_runtime.c
     src/barrel_runtime.c
     src/barrel_live_runtime.c
     src/barrel_scene_runtime.c
@@ -141,6 +142,7 @@ foreach(test_name IN ITEMS
     player_visual_runtime
     player_final_runtime
     object_identity
+    gnawty_runtime
     barrel_runtime
     barrel_live_runtime
     barrel_scene_runtime
