@@ -75,28 +75,34 @@ static void finish_asset_stats(Dk1SceneMemory *scene) {
         scene->assets.nonzero_palette_colors != 0u;
 }
 
-bool dk1_scene_memory_load(const Dk1RomImage *rom,
-                           uint16_t level_id,
-                           bool special_assets,
-                           bool state_package,
-                           Dk1SceneMemory *scene) {
-    size_t i;
+bool dk1_scene_memory_prepare(const Dk1RomImage *rom,
+                              uint16_t level_id,
+                              bool special_assets,
+                              bool state_package,
+                              Dk1SceneMemory *scene) {
     if (rom == NULL || scene == NULL)
         return false;
     memset(scene, 0, sizeof(*scene));
-    if (!dk1_scene_recipe_for_level(rom, level_id, &scene->recipe) ||
-        !dk1_scene_package_plan(level_id,
-                                scene->recipe.primary_vram_package,
-                                special_assets, state_package,
-                                &scene->packages) ||
-        !dk1_ppu_preset_read(rom, scene->recipe.ppu_preset,
-                             &scene->ppu) ||
-        !dk1_level_terrain_config_read(rom,
-                                       scene->recipe.terrain_profile,
-                                       &scene->terrain) ||
-        !dk1_level_camera_bounds_read(rom, level_id, &scene->camera))
+    return dk1_scene_recipe_for_level(rom, level_id, &scene->recipe) &&
+           dk1_scene_package_plan(level_id,
+                                  scene->recipe.primary_vram_package,
+                                  special_assets, state_package,
+                                  &scene->packages) &&
+           dk1_ppu_preset_read(rom, scene->recipe.ppu_preset,
+                               &scene->ppu) &&
+           dk1_level_terrain_config_read(rom,
+                                         scene->recipe.terrain_profile,
+                                         &scene->terrain) &&
+           dk1_level_camera_bounds_read(rom, level_id, &scene->camera);
+}
+
+bool dk1_scene_memory_load_assets(const Dk1RomImage *rom,
+                                  Dk1SceneMemory *scene) {
+    size_t i;
+    if (rom == NULL || scene == NULL)
         return false;
 
+    memset(&scene->assets, 0, sizeof(scene->assets));
     dk1_vram_image_init(&scene->vram);
     scene->assets.package_count = scene->packages.count;
     for (i = 0u; i < scene->packages.count; ++i) {
@@ -127,4 +133,14 @@ bool dk1_scene_memory_load(const Dk1RomImage *rom,
     }
     finish_asset_stats(scene);
     return true;
+}
+
+bool dk1_scene_memory_load(const Dk1RomImage *rom,
+                           uint16_t level_id,
+                           bool special_assets,
+                           bool state_package,
+                           Dk1SceneMemory *scene) {
+    return dk1_scene_memory_prepare(rom, level_id,
+                                    special_assets, state_package, scene) &&
+           dk1_scene_memory_load_assets(rom, scene);
 }
