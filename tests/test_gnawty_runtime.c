@@ -29,6 +29,8 @@ int main(void) {
         assert(gnawty.callback_pc == DK1_GNAWTY_CALLBACK_PC);
     }
     assert(gnawty.animation.frame != 0u);
+    for (i = 0u; i < 4u; ++i)
+        assert(dk1_gnawty_step(&gnawty, &rom, NULL, NULL, &result));
     assert(gnawty.motion.world_x > start_x);
     assert(dk1_gnawty_build_visual(&gnawty, &rom, &base_vram,
                                     160u, 300u, 512u, 0u));
