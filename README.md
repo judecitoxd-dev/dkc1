@@ -20,7 +20,7 @@ playthrough-complete game with progression, saves and audible gameplay audio.
 | Area | Progress |
 |---|---:|
 | Cartridge identity / HiROM mapping | 100% |
-| ROM texture/palette loading | working per scene, persistent cache still pending |
+| ROM texture/palette loading | working per scene with persistent local cache |
 | Reset-vector and boot-entry analysis | 80% |
 | Routine discovery and symbol map | 99% |
 | Semantic portable C | player, terrain, damage bridge, streamed Barrel family, streamed Gnawty and camera object lifecycle |
@@ -54,15 +54,43 @@ legal user ROM
 
 No converted graphics are committed to the repository. Background tiles,
 object/player frame graphics and palettes are loaded from the user's ROM into
-host memory when the scene starts. A future persistent local cache can avoid
-repeating decompression, but it is an optimization rather than a requirement for
-rendering.
+host memory when the scene starts.
 
 `Dk1SceneAssetStats` records package count, direct/compressed records, DMA bytes,
 decompressed bytes, palette uploads, nonzero VRAM/palette contents and stable
 VRAM/CGRAM signatures. `dk1_scene_probe` prints those values and writes a PPM
 render, while `dk1_scene_validate` totals asset loading across all scene IDs.
-The X11 preview also reports whether textures and palettes were loaded.
+
+## Persistent local asset cache
+
+The Windows and X11 previews now create a versioned sidecar beside the user's
+ROM after the first scene load:
+
+```text
+Donkey Kong Country (USA) (Rev 2).sfc
+Donkey Kong Country (USA) (Rev 2).sfc.dk1-assets-0016-00.bin
+```
+
+The first load still reads and decompresses the original graphics from the legal
+ROM. A later load validates the ROM again, computes a full-ROM fingerprint and
+then restores the already prepared 64 KiB VRAM image and 256-color CGRAM image
+from the sidecar.
+
+The cache contains only locally derived render memory and accounting data. It is
+not committed, is ignored by Git and is not accepted as a replacement for the
+ROM. Its header verifies:
+
+- cache format version;
+- complete ROM size and fingerprint;
+- level and scene-option flags;
+- expected VRAM and palette payload sizes;
+- payload, VRAM and palette signatures;
+- package and palette metadata from the current scene recipe.
+
+A missing cache is generated. A stale, truncated or corrupted cache is rejected
+and rebuilt from the ROM. Failure to write the optimization file does not stop
+the game. Cache telemetry is kept outside deterministic scene signatures, so a
+fresh ROM decode and a cache hit must produce identical scene state.
 
 ## Source-driven level object import
 
@@ -238,10 +266,10 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-There are **107 automated tests configured**: 106 C executables and one Python
-control-flow test. Public CI compiles every target and runs the 88 tests that do
-not require copyrighted ROM bytes; all 88 currently pass. The 19 ROM-backed
-fidelity tests, including the new scene asset-loading regression, remain
+There are **108 automated tests configured**: 107 C executables and one Python
+control-flow test. Public CI compiles every target and runs the 89 tests that do
+not require copyrighted ROM bytes; all 89 currently pass. The 19 ROM-backed
+fidelity tests include a first-load/cache-hit equality regression and remain
 configured for a locally supplied legal USA Rev 2 ROM.
 
 The Windows x64 workflow configures with MSVC, builds `dk1_win32`, packages the
@@ -280,10 +308,13 @@ When X11 is available:
   0x16 384 224
 ```
 
-For Jungle Hijinxs, the frontend loads the original texture packages and
-palettes, imports the original object catalog, streams visible objects and
+For Jungle Hijinxs, the frontend loads or restores the original texture packages
+and palettes, imports the original object catalog, streams visible objects and
 connects visible Gnawties and supported Barrel-family source records. Q/E or
 mapped L/R accelerates the player, Z/B jumps and U/Y picks up or throws.
+
+The Windows and X11 window titles report whether the current scene assets came
+from a fresh ROM decode, a newly written cache or a verified cache hit.
 
 ## Accuracy boundary
 
@@ -294,8 +325,8 @@ user-provided Rev 2 ROM. No ROM or extracted assets are committed.
 
 ## What still blocks a real 100%
 
-- Add a persistent local asset cache and complete the remaining dynamic graphics
-  upload paths used during gameplay transitions.
+- Complete the remaining dynamic graphics upload paths used during gameplay
+  transitions; the cache currently covers initialized scene VRAM and CGRAM.
 - Translate the exact Gnawty callback/shared enemy helpers, original hurt states,
   Kong loss/swap and invulnerability timing.
 - Bind remaining streamed enemies, collectibles, signs, effects and completion
