@@ -22,6 +22,12 @@ int main(int argc, char **argv) {
     size_t object_imports = 0u;
     size_t object_unresolved = 0u;
     size_t object_overflow = 0u;
+    size_t object_streams = 0u;
+    size_t stream_catalog = 0u;
+    size_t stream_active = 0u;
+    size_t stream_entered = 0u;
+    size_t stream_exited = 0u;
+    size_t stream_overflow = 0u;
     size_t barrel_records = 0u;
     size_t barrel_spawns = 0u;
 
@@ -85,6 +91,34 @@ int main(int argc, char **argv) {
                                    sizeof(entry->callback_pc), hash);
             }
         }
+        if (frontend.level_objects_ready) {
+            const Dk1LevelObjectStream *stream = &frontend.level_objects;
+            ++object_streams;
+            stream_catalog += stream->catalog_count;
+            stream_active += stream->active_count;
+            stream_entered += stream->entered_count;
+            stream_exited += stream->exited_count;
+            stream_overflow += stream->overflow_count;
+            hash = dk1_fnv1a64(&stream->camera_x,
+                               sizeof(stream->camera_x), hash);
+            hash = dk1_fnv1a64(&stream->active_count,
+                               sizeof(stream->active_count), hash);
+            hash = dk1_fnv1a64(&stream->overflow_count,
+                               sizeof(stream->overflow_count), hash);
+            for (i = 0u; i < stream->catalog_count; ++i) {
+                const Dk1LevelObjectStreamEntry *entry = &stream->entries[i];
+                if (!entry->active)
+                    continue;
+                hash = dk1_fnv1a64(&entry->record_index,
+                                   sizeof(entry->record_index), hash);
+                hash = dk1_fnv1a64(&entry->slot,
+                                   sizeof(entry->slot), hash);
+                hash = dk1_fnv1a64(&entry->type_id,
+                                   sizeof(entry->type_id), hash);
+                hash = dk1_fnv1a64(&entry->callback_pc,
+                                   sizeof(entry->callback_pc), hash);
+            }
+        }
         if (source_stats.barrel_found) ++barrel_records;
         if (source_stats.barrel_spawned) ++barrel_spawns;
         hash = dk1_fnv1a64(&level, sizeof(level), hash);
@@ -108,10 +142,14 @@ int main(int argc, char **argv) {
     printf("frontends=%u failed=%zu terrain=%zu local_dispatch=%zu "
            "object_lists=%zu object_records=%zu object_imports=%zu "
            "object_unresolved=%zu object_overflow=%zu "
+           "object_streams=%zu stream_catalog=%zu stream_active=%zu "
+           "stream_entered=%zu stream_exited=%zu stream_overflow=%zu "
            "barrel_records=%zu barrel_spawns=%zu signature=%016llX\n",
            DK1_SCENE_LEVEL_COUNT, failed, terrain, local,
            object_lists, object_records, object_imports,
            object_unresolved, object_overflow,
+           object_streams, stream_catalog, stream_active,
+           stream_entered, stream_exited, stream_overflow,
            barrel_records, barrel_spawns, (unsigned long long)hash);
     free(scene);
     free(pixels);
