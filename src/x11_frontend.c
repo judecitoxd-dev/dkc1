@@ -33,7 +33,7 @@ int main(int argc, char **argv) {
     Dk1RomImage rom = {0};
     Dk1RomIdentity identity;
     Dk1SceneMemory *scene = NULL;
-    Dk1SoftwareFrontend frontend;
+    Dk1SoftwareFrontend frontend = {0};
     Dk1LevelSoftwareFrontendStats source_stats;
     Dk1Rgba8 *pixels = NULL;
     Dk1RgbaSurface surface;
@@ -163,6 +163,7 @@ int main(int argc, char **argv) {
     result = 0;
 
 cleanup:
+    dk1_software_frontend_dispose(&frontend);
     if (image != NULL) XDestroyImage(image);
     if (display != NULL) {
         if (gc != 0) XFreeGC(display, gc);
