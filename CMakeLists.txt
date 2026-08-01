@@ -3,6 +3,10 @@ project(dk1_pc LANGUAGES C)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
+if(MSVC)
+    set(CMAKE_MSVC_RUNTIME_LIBRARY
+        "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif()
 
 add_library(dk1_core
     src/player_motion.c
@@ -134,8 +138,6 @@ if(WIN32)
     add_executable(dk1_win32 WIN32 src/win32_frontend.c)
     target_link_libraries(dk1_win32 PRIVATE dk1_core user32 gdi32 comdlg32)
     if(MSVC)
-        set_property(TARGET dk1_win32 PROPERTY
-            MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
         target_compile_options(dk1_win32 PRIVATE /W4)
     endif()
 endif()
