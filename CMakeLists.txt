@@ -10,6 +10,7 @@ add_library(dk1_core
     src/player_terrain_runtime.c
     src/player_live_runtime.c
     src/player_combat_runtime.c
+    src/preview_flow.c
     src/spc700_ipl_protocol.c
     src/player_core_runtime.c
     src/player_visual_runtime.c
@@ -147,6 +148,7 @@ foreach(test_name IN ITEMS
     player_terrain_envelope
     player_live_runtime
     player_combat_runtime
+    preview_flow
     software_frontend_terrain
     spc700_ipl_protocol
     spc700_ipl_driver_bridge
