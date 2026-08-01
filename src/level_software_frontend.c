@@ -21,6 +21,22 @@ bool dk1_level_software_frontend_init(const Dk1RomImage *rom,
     output->object_list_imported = dk1_level_object_import_primary(
         rom, entrance_id, &output->primary_import);
 
+    frontend->level_objects_ready =
+        dk1_level_object_stream_init(
+            rom, entrance_id, &frontend->level_objects) &&
+        dk1_level_object_stream_update(
+            &frontend->level_objects, frontend->runtime.view.camera_x,
+            frontend->runtime.view.width, 128u, 128u);
+    output->object_stream_initialized = frontend->level_objects_ready;
+    if (frontend->level_objects_ready) {
+        output->stream_catalog_count =
+            frontend->level_objects.catalog_count;
+        output->stream_active_count =
+            frontend->level_objects.active_count;
+        output->stream_overflow_count =
+            frontend->level_objects.overflow_count;
+    }
+
     if (!dk1_level_object_spawn_find(
             rom, entrance_id, DK1_OBJECT_TYPE_BARREL, 0u,
             DK1_PRIMARY_OBJECT_FIRST_SLOT, &output->barrel_spawn))
