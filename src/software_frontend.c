@@ -2,12 +2,227 @@
 #include <stdlib.h>
 #include <string.h>
 #include "dk1/scene_signature.h"
-static void update_marker(Dk1SoftwareFrontend*f){Dk1OamSprite s;s.x=f->marker_x;s.y=(uint8_t)f->marker_y;s.tile_number=f->marker_tile;s.palette=f->marker_palette;s.priority=3u;s.horizontal_flip=false;s.vertical_flip=false;s.large=false;s.width=8u;s.height=8u;dk1_oam_init(&f->oam);(void)dk1_oam_encode_sprite(&f->oam,f->obsel,0u,&s);f->player_visual_ready=false;}
-static void update_pos(Dk1SoftwareFrontend*f){int16_t dx=(int16_t)(uint16_t)(f->player_preview.motion.world_x-f->runtime.view.camera_x);int32_t y=(int32_t)f->player_vertical_origin-f->runtime.view.camera_y-f->player_preview.motion.world_y;f->marker_x=dx;if(y<-128)y=-128;if(y>255)y=255;f->marker_y=(int16_t)y;f->player_frame=f->player_preview.frame_id;}
-static bool update_visual(const Dk1RomImage*r,const Dk1SceneMemory*s,Dk1SoftwareFrontend*f){Dk1ObjectScreenTransform t;Dk1ObjectFrameOamStyle st;if(!r){update_marker(f);return true;}t.world_x=(int16_t)f->player_preview.motion.world_x;t.world_y=f->player_preview.motion.world_y;t.camera_x=(int16_t)f->runtime.view.camera_x;t.vertical_origin=(int16_t)f->player_vertical_origin;t.vertical_scroll=(int16_t)f->runtime.view.camera_y;t.vertical_offset=0;t.object_flags=f->player_preview.facing_left?0x4000u:0u;st.base_tile_number=f->player_tile_base;st.palette=f->marker_palette;st.priority=3u;st.horizontal_flip=false;st.vertical_flip=false;f->player_visual_ready=dk1_player_visual_build(r,&s->vram,f->player_frame,t,st,f->obsel,&f->oam,&f->player_vram,&f->player_visual);if(!f->player_visual_ready)update_marker(f);return true;}
-static bool init_common(const Dk1RomImage*r,const Dk1SceneMemory*s,uint16_t w,uint16_t h,Dk1SoftwareFrontend*f){uint8_t ob=0;Dk1DynamicStreamUpdate u;uint16_t sx;int16_t sy;if(!s||!f||!w||!h)return false;memset(f,0,sizeof(*f));f->runtime.view.width=w;f->runtime.view.height=h;f->marker_x=(int16_t)(w/2u);f->marker_y=(int16_t)(h/2u);f->player_frame=0x0330u;f->player_tile_base=0x0040u;f->player_vertical_origin=224u;f->player_vram=s->vram;(void)dk1_ppu_preset_register(&s->ppu,0x2101u,&ob);f->obsel=ob;if(!dk1_scene_view_clamp(s,&f->runtime.view))return false;sx=(uint16_t)(f->runtime.view.camera_x+w/2u);sy=(int16_t)(224-f->runtime.view.camera_y-h/2u);dk1_player_preview_init(&f->player_preview,sx,sy);dk1_player_live_init(&f->player_live);if(r&&dk1_player_terrain_init(&f->player_terrain,r,s->terrain,(uint32_t)s->camera.maximum_x+w+64u)&&dk1_player_terrain_place(&f->player_terrain,&f->player_preview,h,&f->runtime.view.camera_y)){f->player_vertical_origin=512u;f->player_terrain_ready=true;}update_pos(f);update_marker(f);return dk1_dynamic_stream_update(f->runtime.view,128u,&f->stream,&u);}
-bool dk1_software_frontend_init(const Dk1SceneMemory*s,uint16_t w,uint16_t h,Dk1SoftwareFrontend*f){return init_common(NULL,s,w,h,f);}
-bool dk1_software_frontend_init_with_rom(const Dk1RomImage*r,const Dk1SceneMemory*s,uint16_t w,uint16_t h,Dk1SoftwareFrontend*f){return r&&init_common(r,s,w,h,f);}
-bool dk1_software_frontend_step(const Dk1SceneMemory*s,uint16_t held,Dk1SoftwareFrontend*f){Dk1DynamicStreamUpdate u;uint32_t maxx;if(!s||!f)return false;dk1_host_input_update(&f->input,held);if(!dk1_scene_runtime_step(s,held,&f->runtime))return false;if(!dk1_dynamic_stream_update(f->runtime.view,128u,&f->stream,&u))return false;dk1_player_live_step(&f->player_live,&f->player_preview,f->player_terrain_ready?&f->player_terrain:NULL,held,f->input.pressed);maxx=(uint32_t)s->camera.maximum_x+f->runtime.view.width+32u;if(f->player_preview.motion.world_x>maxx)f->player_preview.motion.world_x=(uint16_t)maxx;update_pos(f);f->player_visual_ready=false;return true;}
-bool dk1_software_frontend_render(const Dk1RomImage*r,const Dk1SceneMemory*s,Dk1SoftwareFrontend*f,Dk1RgbaSurface d){Dk1Rgba8*px=NULL;Dk1RgbaSurface st;const Dk1VramImage*sv;uint8_t disp=15u;bool streamed=false;size_t i,n;if(!s||!f||!d.pixels||d.width!=f->runtime.view.width||d.height!=f->runtime.view.height)return false;if(!dk1_ppu_compose_mode1(s,f->runtime.view.camera_x/2u,f->runtime.view.camera_y/2u,0u,f->runtime.view.camera_y,d))return false;if(r){px=calloc(d.width*d.height,sizeof(*px));if(px){st=(Dk1RgbaSurface){px,d.width,d.height,d.width};streamed=dk1_scene_render_bg1(r,s,f->runtime.view,st);if(streamed)memcpy(d.pixels,px,d.width*d.height*sizeof(*px));free(px);}}if(!update_visual(r,s,f))return false;sv=f->player_visual_ready?&f->player_vram:&s->vram;if(!dk1_oam_render(&f->oam,f->obsel,sv,&s->cgram,0u,3u,d))return false;if(dk1_ppu_preset_register(&s->ppu,0x2100u,&disp))disp&=15u;n=d.width*d.height;if(disp<15u)for(i=0;i<n;i++){uint16_t rr=d.pixels[i].r,g=d.pixels[i].g,b=d.pixels[i].b;d.pixels[i].r=(uint8_t)((rr*disp+7u)/15u);d.pixels[i].g=(uint8_t)((g*disp+7u)/15u);d.pixels[i].b=(uint8_t)((b*disp+7u)/15u);}return true;}
-uint64_t dk1_software_frontend_signature(const Dk1SoftwareFrontend*f){uint64_t h=0;if(!f)return 0;h=dk1_fnv1a64(&f->runtime,sizeof(f->runtime),h);h=dk1_fnv1a64(&f->input,sizeof(f->input),h);h=dk1_fnv1a64(&f->stream,sizeof(f->stream),h);h=dk1_fnv1a64(&f->player_preview,sizeof(f->player_preview),h);h=dk1_fnv1a64(&f->player_live,sizeof(f->player_live),h);h=dk1_fnv1a64(&f->player_terrain.last_attributes,sizeof(f->player_terrain.last_attributes),h);h=dk1_fnv1a64(&f->marker_x,sizeof(f->marker_x),h);h=dk1_fnv1a64(&f->marker_y,sizeof(f->marker_y),h);h=dk1_fnv1a64(&f->player_frame,sizeof(f->player_frame),h);h=dk1_fnv1a64(&f->player_visual,sizeof(f->player_visual),h);return dk1_fnv1a64(&f->oam,sizeof(f->oam),h);}
+
+static void update_marker(Dk1SoftwareFrontend *f) {
+    Dk1OamSprite s;
+    s.x = f->marker_x;
+    s.y = (uint8_t)f->marker_y;
+    s.tile_number = f->marker_tile;
+    s.palette = f->marker_palette;
+    s.priority = 3u;
+    s.horizontal_flip = false;
+    s.vertical_flip = false;
+    s.large = false;
+    s.width = 8u;
+    s.height = 8u;
+    dk1_oam_init(&f->oam);
+    (void)dk1_oam_encode_sprite(&f->oam, f->obsel, 0u, &s);
+    f->player_visual_ready = false;
+}
+
+static void update_pos(Dk1SoftwareFrontend *f) {
+    int16_t dx = (int16_t)(uint16_t)(f->player_preview.motion.world_x -
+                                     f->runtime.view.camera_x);
+    int32_t y = (int32_t)f->player_vertical_origin -
+                f->runtime.view.camera_y - f->player_preview.motion.world_y;
+    f->marker_x = dx;
+    if (y < -128) y = -128;
+    if (y > 255) y = 255;
+    f->marker_y = (int16_t)y;
+    f->player_frame = f->player_preview.frame_id;
+}
+
+static bool update_visual(const Dk1RomImage *r, const Dk1SceneMemory *s,
+                          Dk1SoftwareFrontend *f) {
+    Dk1ObjectScreenTransform t;
+    Dk1ObjectFrameOamStyle st;
+    if (r == NULL) {
+        update_marker(f);
+        return true;
+    }
+    t.world_x = (int16_t)f->player_preview.motion.world_x;
+    t.world_y = f->player_preview.motion.world_y;
+    t.camera_x = (int16_t)f->runtime.view.camera_x;
+    t.vertical_origin = (int16_t)f->player_vertical_origin;
+    t.vertical_scroll = (int16_t)f->runtime.view.camera_y;
+    t.vertical_offset = 0;
+    t.object_flags = f->player_preview.facing_left ? 0x4000u : 0u;
+    st.base_tile_number = f->player_tile_base;
+    st.palette = f->marker_palette;
+    st.priority = 3u;
+    st.horizontal_flip = false;
+    st.vertical_flip = false;
+    f->player_visual_ready = dk1_player_visual_build(
+        r, &s->vram, f->player_frame, t, st, f->obsel,
+        &f->oam, &f->player_vram, &f->player_visual);
+    if (!f->player_visual_ready) update_marker(f);
+    return true;
+}
+
+static bool init_common(const Dk1RomImage *r, const Dk1SceneMemory *s,
+                        uint16_t w, uint16_t h, Dk1SoftwareFrontend *f) {
+    uint8_t ob = 0;
+    Dk1DynamicStreamUpdate u;
+    uint16_t sx;
+    int16_t sy;
+    if (s == NULL || f == NULL || w == 0u || h == 0u) return false;
+    memset(f, 0, sizeof(*f));
+    f->source_rom = r;
+    f->runtime.view.width = w;
+    f->runtime.view.height = h;
+    f->marker_x = (int16_t)(w / 2u);
+    f->marker_y = (int16_t)(h / 2u);
+    f->player_frame = 0x0330u;
+    f->player_tile_base = 0x0040u;
+    f->player_vertical_origin = 224u;
+    f->player_vram = s->vram;
+    (void)dk1_ppu_preset_register(&s->ppu, 0x2101u, &ob);
+    f->obsel = ob;
+    if (!dk1_scene_view_clamp(s, &f->runtime.view)) return false;
+    sx = (uint16_t)(f->runtime.view.camera_x + w / 2u);
+    sy = (int16_t)(224 - f->runtime.view.camera_y - h / 2u);
+    dk1_player_preview_init(&f->player_preview, sx, sy);
+    dk1_player_live_init(&f->player_live);
+    if (r != NULL &&
+        dk1_player_terrain_init(&f->player_terrain, r, s->terrain,
+            (uint32_t)s->camera.maximum_x + w + 64u) &&
+        dk1_player_terrain_place(&f->player_terrain, &f->player_preview,
+                                 h, &f->runtime.view.camera_y)) {
+        f->player_vertical_origin = 512u;
+        f->player_terrain_ready = true;
+    }
+    update_pos(f);
+    update_marker(f);
+    return dk1_dynamic_stream_update(f->runtime.view, 128u, &f->stream, &u);
+}
+
+bool dk1_software_frontend_init(const Dk1SceneMemory *s, uint16_t w,
+                                uint16_t h, Dk1SoftwareFrontend *f) {
+    return init_common(NULL, s, w, h, f);
+}
+
+bool dk1_software_frontend_init_with_rom(const Dk1RomImage *r,
+                                         const Dk1SceneMemory *s,
+                                         uint16_t w, uint16_t h,
+                                         Dk1SoftwareFrontend *f) {
+    return r != NULL && init_common(r, s, w, h, f);
+}
+
+bool dk1_software_frontend_spawn_barrel(Dk1SoftwareFrontend *f,
+                                        uint16_t type_id,
+                                        uint16_t world_x,
+                                        int16_t world_y) {
+    if (f == NULL || f->source_rom == NULL || !f->player_terrain_ready)
+        return false;
+    f->barrel_ready = dk1_barrel_scene_spawn(
+        &f->barrel, f->source_rom, 1u, type_id, world_x, world_y);
+    return f->barrel_ready;
+}
+
+bool dk1_software_frontend_step(const Dk1SceneMemory *s, uint16_t held,
+                                Dk1SoftwareFrontend *f) {
+    Dk1DynamicStreamUpdate u;
+    Dk1BarrelLiveResult barrel_result;
+    uint32_t maxx;
+    if (s == NULL || f == NULL) return false;
+    dk1_host_input_update(&f->input, held);
+    if (!dk1_scene_runtime_step(s, held, &f->runtime)) return false;
+    if (!dk1_dynamic_stream_update(f->runtime.view, 128u, &f->stream, &u))
+        return false;
+    dk1_player_live_step(&f->player_live, &f->player_preview,
+        f->player_terrain_ready ? &f->player_terrain : NULL,
+        held, f->input.pressed);
+    if (f->barrel_ready && f->barrel.live.active) {
+        if (!dk1_barrel_scene_step(&f->barrel, f->source_rom,
+                f->player_terrain_ready ? &f->player_terrain : NULL,
+                &f->player_preview, f->input.pressed, &barrel_result))
+            return false;
+        if (!f->barrel.live.active) f->barrel_ready = false;
+    }
+    maxx = (uint32_t)s->camera.maximum_x + f->runtime.view.width + 32u;
+    if (f->player_preview.motion.world_x > maxx)
+        f->player_preview.motion.world_x = (uint16_t)maxx;
+    update_pos(f);
+    f->player_visual_ready = false;
+    return true;
+}
+
+bool dk1_software_frontend_render(const Dk1RomImage *r,
+                                  const Dk1SceneMemory *s,
+                                  Dk1SoftwareFrontend *f,
+                                  Dk1RgbaSurface d) {
+    Dk1Rgba8 *px = NULL;
+    Dk1RgbaSurface st;
+    const Dk1VramImage *sv;
+    uint8_t disp = 15u;
+    bool streamed = false;
+    size_t i, n;
+    if (s == NULL || f == NULL || d.pixels == NULL ||
+        d.width != f->runtime.view.width || d.height != f->runtime.view.height)
+        return false;
+    if (!dk1_ppu_compose_mode1(s, f->runtime.view.camera_x / 2u,
+                               f->runtime.view.camera_y / 2u, 0u,
+                               f->runtime.view.camera_y, d))
+        return false;
+    if (r != NULL) {
+        px = calloc(d.width * d.height, sizeof(*px));
+        if (px != NULL) {
+            st = (Dk1RgbaSurface){px, d.width, d.height, d.width};
+            streamed = dk1_scene_render_bg1(r, s, f->runtime.view, st);
+            if (streamed)
+                memcpy(d.pixels, px, d.width * d.height * sizeof(*px));
+            free(px);
+        }
+    }
+    if (f->barrel_ready && f->barrel.live.active) {
+        if (!dk1_barrel_scene_build_visual(
+                &f->barrel, r, &s->vram,
+                f->runtime.view.camera_x, f->runtime.view.camera_y,
+                f->player_vertical_origin, f->obsel))
+            return false;
+        if (!dk1_oam_render(&f->barrel.oam, f->obsel, &f->barrel.vram,
+                            &s->cgram, 0u, 3u, d))
+            return false;
+    }
+    if (!update_visual(r, s, f)) return false;
+    sv = f->player_visual_ready ? &f->player_vram : &s->vram;
+    if (!dk1_oam_render(&f->oam, f->obsel, sv, &s->cgram, 0u, 3u, d))
+        return false;
+    if (dk1_ppu_preset_register(&s->ppu, 0x2100u, &disp)) disp &= 15u;
+    n = d.width * d.height;
+    if (disp < 15u) {
+        for (i = 0u; i < n; ++i) {
+            uint16_t rr = d.pixels[i].r;
+            uint16_t g = d.pixels[i].g;
+            uint16_t b = d.pixels[i].b;
+            d.pixels[i].r = (uint8_t)((rr * disp + 7u) / 15u);
+            d.pixels[i].g = (uint8_t)((g * disp + 7u) / 15u);
+            d.pixels[i].b = (uint8_t)((b * disp + 7u) / 15u);
+        }
+    }
+    return true;
+}
+
+uint64_t dk1_software_frontend_signature(const Dk1SoftwareFrontend *f) {
+    uint64_t h = 0;
+    if (f == NULL) return 0u;
+    h = dk1_fnv1a64(&f->runtime, sizeof(f->runtime), h);
+    h = dk1_fnv1a64(&f->input, sizeof(f->input), h);
+    h = dk1_fnv1a64(&f->stream, sizeof(f->stream), h);
+    h = dk1_fnv1a64(&f->player_preview, sizeof(f->player_preview), h);
+    h = dk1_fnv1a64(&f->player_live, sizeof(f->player_live), h);
+    h = dk1_fnv1a64(&f->player_terrain.last_attributes,
+                    sizeof(f->player_terrain.last_attributes), h);
+    h = dk1_fnv1a64(&f->marker_x, sizeof(f->marker_x), h);
+    h = dk1_fnv1a64(&f->marker_y, sizeof(f->marker_y), h);
+    h = dk1_fnv1a64(&f->player_frame, sizeof(f->player_frame), h);
+    h = dk1_fnv1a64(&f->player_visual, sizeof(f->player_visual), h);
+    h = dk1_fnv1a64(&f->barrel_ready, sizeof(f->barrel_ready), h);
+    if (f->barrel_ready) {
+        h = dk1_fnv1a64(&f->barrel.live, sizeof(f->barrel.live), h);
+        h = dk1_fnv1a64(&f->barrel.selected_animation,
+                        sizeof(f->barrel.selected_animation), h);
+        h = dk1_fnv1a64(&f->barrel.visual, sizeof(f->barrel.visual), h);
+    }
+    return dk1_fnv1a64(&f->oam, sizeof(f->oam), h);
+}

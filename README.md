@@ -67,6 +67,25 @@ Behavior confirmed by focused validation:
 
 Pickup distance, held offset and the adapter that translates generic terrain callbacks into helper carries are explicitly portable bridge policy. They are not claimed to be exact original helper implementations yet. The next step is binding this module to real level object spawning, the frontend object scheduler, authentic barrel animation/OAM/DMA and player pickup/throw states.
 
+## Barrel scene and frontend integration
+
+`barrel_scene_runtime` now joins the live common-barrel loop to the translated
+animation interpreter, original frame table, OAM builder and frame DMA path.
+For the normal Barrel, the supported Rev 2 ROM produces:
+
+```text
+idle animation $D2   → frame $1BD4 → 7 OAM pieces → 608 DMA bytes
+held animation $D8   → frame $1C18 → 6 OAM pieces → 576 DMA bytes
+thrown animation $DE → frame $1BF8 → 6 OAM pieces → 576 DMA bytes
+```
+
+The ROM-aware software frontend exposes `dk1_software_frontend_spawn_barrel`.
+A spawned barrel uses Y as a debug pickup/throw action, follows the live player,
+uses the ROM terrain adapter for floor/wall contacts and is rendered in a
+separate authentic OAM/VRAM pass before the player. This is a deliberate debug
+entry point: level object records do not spawn it automatically yet, and the
+portable pickup radius/held offset are not claimed as exact original helpers.
+
 The authentic player visual path remains connected:
 
 ```text
@@ -99,7 +118,7 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-There are now **92 automated tests configured**: 91 C tests and one Python control-flow test. The new live-barrel test compiles and passes locally with `-Wall -Wextra -Wpedantic -Werror` and AddressSanitizer/UndefinedBehaviorSanitizer against a dispatcher-compatible focused harness. The complete 92-test repository suite was not rerun in this stage, and no remote CI result is claimed.
+There are now **94 automated tests configured**: 93 C tests and one Python control-flow test. The live-barrel, barrel-scene and frontend integration tests compile and pass in focused local harnesses with `-Wall -Wextra -Wpedantic -Werror`; the live-barrel harness also passes AddressSanitizer/UndefinedBehaviorSanitizer. The Rev 2 ROM was independently checked for the `$1BD4/$1C18/$1BF8` frame layouts and DMA sizes. The complete 94-test repository suite was not rerun in this stage, and no remote CI result is claimed.
 
 ## Validate translated gameplay, objects and SPC handoff
 
@@ -126,8 +145,9 @@ Object names are corroborated against a public symbolic DKC1 disassembly, while 
 
 ## What still blocks a real 100%
 
-- Bind the live barrel bridge to actual level object records and the interactive frontend.
-- Use authentic barrel animation/OAM/DMA while held, thrown, rolling and breaking.
+- Bind the debug-spawned barrel to actual level object records and the original object scheduler.
+- Connect original player pickup/throw states and exact ownership helpers.
+- Add break/explosion effect actors and audio output to the visible frontend.
 - Expand the live player bridge beyond states 1 and 11 and connect original pickup/throw transitions.
 - Translate the separate Oil Drum callback and original behavior of enemies, collectibles, signs and level-completion actors.
 - Implement confirmed material-specific collision effects.

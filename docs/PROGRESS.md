@@ -2,40 +2,44 @@
 
 ## Current total: 98% — held intentionally
 
-This stage does **not** increase the headline percentage. Ninety-eight percent refers to engineering infrastructure and translated systems, not ninety-eight percent playable gameplay. Reaching 100% now requires a complete original-compatible level loop rather than more isolated modules.
+This stage again does **not** increase the headline percentage. The barrel is
+now visible and controllable through an explicit frontend debug spawn, but it
+is not yet created from original level object records or connected to the full
+player pickup/throw graph.
 
 ## Completed while remaining at 98%
 
-### Live common-barrel bridge
+### Authentic barrel scene path
 
-- Added `barrel_live_runtime` on top of the ten-state `$BF:CF0C` dispatcher.
-- Added deterministic spawning for Steel Keg, Barrel, Rope Barrel, DK Barrel and TNT Barrel.
-- Added proximity pickup and a held phase that follows the player's wrapped 16-bit world position and facing direction.
-- Added throwing with `$0300` horizontal and vertical 8.8 velocities.
-- Added barrel gravity `-$0070` with a `-$0600` terminal value and reused the translated fixed-point integration helpers.
-- Added generic terrain callbacks for crossed floors and solid wall probes, preserving contact attributes.
-- Added rolling after a survivable landing and collision dispatch through the existing `D23C`/`D324` result paths.
-- Normal Barrel wall impact produces destruction and sound `$14`.
-- Steel Keg wall impact reverses horizontal velocity instead of destroying the object.
-- TNT landing produces explosion/destruction and two effect-script requests.
-- DK Barrel landing produces destruction and a trapped-Kong release request.
-- The Oil Drum is explicitly rejected because its callback is `$BF:83A0`, outside the common dispatcher.
+- Added `barrel_scene_runtime` above `barrel_live_runtime`.
+- Added ROM-terrain adapters for floor crossings and three-point wall probes.
+- Selected original idle/held/thrown animation IDs by barrel type.
+- Advanced those scripts through the translated animation interpreter.
+- Built their original frame layouts through OAM and frame DMA.
+- Confirmed normal Barrel frames `$1BD4`, `$1C18`, `$1BF8`.
+- Confirmed 7/6/6 pieces and 608/576/576 DMA bytes.
 
-### Accuracy boundary
+### Software frontend bridge
 
-Pickup range, held offsets and the adapter from portable terrain callbacks to unresolved original helper carries are host-bridge policy. They are measurable and deterministic, but not claimed to be exact original helper semantics. No percentage increase is justified until the bridge is connected to real level object spawning, the frontend scheduler, player pickup/throw states and authentic object rendering.
+- Added `dk1_software_frontend_spawn_barrel`.
+- Stored the ROM reference only for the lifetime of the frontend.
+- Used Y as a debug pickup/throw action without changing B jump input.
+- Stepped live barrel physics and ROM terrain alongside the player.
+- Rendered the barrel with a separate OAM/VRAM pass before the player.
+- Kept ROM-less frontend tests and fallback behavior unchanged.
 
 ## Validation
 
-- Added `barrel_live_runtime` to `dk1_core` and `barrel_live_runtime` to the configured tests.
-- Configured validation increases from 91 to 92 tests: 91 C tests plus the Python control-flow test.
-- The focused live-barrel test passes with `-Wall -Wextra -Wpedantic -Werror` and ASan/UBSan against a dispatcher-compatible local harness.
-- The full repository suite and remote CI were not run in this stage.
+- Added `barrel_scene_runtime` and `software_frontend_barrel` tests.
+- Configured validation increases from 92 to 94 tests: 93 C plus one Python.
+- Focused C builds pass with strict warnings; the Rev 2 ROM frame records were
+  independently checked for the expected pieces and DMA byte counts.
+- The complete repository suite and remote CI were not run in this stage.
 
 ## Next measurable targets
 
-- Bind the live bridge to level object records and the interactive frontend.
-- Build authentic barrel frames/OAM/DMA for each live phase.
-- Connect player pickup, hold and throw states to the live dispatcher.
-- Translate the Oil Drum's separate callback.
-- Continue material effects, level completion and SPC/DSP output.
+- Parse and spawn a common Barrel from an original level object record.
+- Connect original player pickup, carry and throw states rather than the Y debug bridge.
+- Spawn authentic break/explosion effects and route sound `$14` to the audio path.
+- Add enemy collision and a level-completion loop.
+- Continue SPC command/timer execution and DSP output.

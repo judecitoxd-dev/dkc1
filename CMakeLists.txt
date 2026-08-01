@@ -16,6 +16,7 @@ add_library(dk1_core
     src/object_identity.c
     src/barrel_runtime.c
     src/barrel_live_runtime.c
+    src/barrel_scene_runtime.c
     src/object_actor_runtime.c
     src/object_screen_oam.c
     src/object_frame_dma.c
@@ -137,6 +138,8 @@ foreach(test_name IN ITEMS
     object_identity
     barrel_runtime
     barrel_live_runtime
+    barrel_scene_runtime
+    software_frontend_barrel
     object_actor_runtime
     object_screen_oam
     object_frame_dma
