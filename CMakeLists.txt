@@ -14,6 +14,8 @@ add_library(dk1_core
     src/player_core_runtime.c
     src/player_visual_runtime.c
     src/player_final_runtime.c
+    src/object_identity.c
+    src/barrel_runtime.c
     src/object_actor_runtime.c
     src/object_screen_oam.c
     src/object_frame_dma.c
@@ -134,6 +136,8 @@ foreach(test_name IN ITEMS
     player_core_runtime
     player_visual_runtime
     player_final_runtime
+    object_identity
+    barrel_runtime
     object_actor_runtime
     object_screen_oam
     object_frame_dma

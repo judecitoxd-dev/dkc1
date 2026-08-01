@@ -1,36 +1,66 @@
 # dk1 — clean-room PC reimplementation
 
-This repository is a clean-room native PC reimplementation of the SNES game identified by the user-provided cartridge dump. It is based on disassembly and behavioral analysis; it is decompilation-like engineering, not Rare's original source recovered line for line.
+This repository is a clean-room native PC reimplementation of the SNES game
+identified by the user-provided cartridge dump. It is based on disassembly and
+behavioral analysis; it is decompilation-like engineering, not Rare's original
+source recovered line for line.
 
 ## Current status
 
 **Overall engineering progress: 98%**
 
-The percentage measures completed and tested engineering systems. It is not the percentage of gameplay currently playable and is not based on ROM bytes converted.
+The percentage measures completed and tested engineering systems. It is not the
+percentage of gameplay currently playable and is not based on ROM bytes
+converted. The project stays at 98% in this stage because an original-compatible
+level loop, complete actor behavior, progression and audible DSP output are
+still absent.
 
 | Area | Progress |
 |---|---:|
 | Cartridge identity / HiROM mapping | 100% |
 | Reset-vector and boot-entry analysis | 80% |
-| Routine discovery and symbol map | 97% |
-| Semantic portable C | dispatcher + terrain envelope + actor callback pipeline |
+| Routine discovery and symbol map | 98% |
+| Semantic portable C | player dispatcher + terrain envelope + common barrel dispatcher |
 | PC rendering / widescreen | 99% infrastructure |
 | Input / saves / menus / compatibility | 91% |
 | Audio loading / driver path | 80% |
 
-Every entry in the original 87-state player dispatcher remains classified: 84 states have executable local C semantics and states 0, 1 and 20 retain exact call plans.
+Every entry in the original 87-state player dispatcher remains classified: 84
+states have executable local C semantics and states 0, 1 and 20 retain exact
+call plans. The live frontend currently executes the normal grounded plan and
+airborne state 11, using fixed-point motion and ROM terrain.
 
-The interactive frontend now uses authentic ROM terrain instead of a flat preview landing line whenever a supported ROM is supplied. It reads the scene's terrain profile, the original 32-pixel collision cells, all 64 shape curves and their material/shape flags. The player is placed on the closest original surface, follows slopes through three foot probes and lands on the crossed surface after a jump.
+Terrain collision includes floor, slope, wall and ceiling probes. Ground, wall
+and ceiling attributes are retained separately, but material-specific water,
+damage, conveyor and neighboring-cell side effects are still unresolved.
 
-The player world-X field is now represented as an unsigned 16-bit coordinate. This fixes levels whose camera and collision map begin above `$8000`; the wrapped signed screen delta still matches the original 16-bit object renderer.
+## Confirmed object identities
 
-The frontend also advances a measurable live dispatcher bridge. Grounded preview frames retain the exact state-1 plan, while jumping enters state 11 at `$BF:8FA7`, executes its `velocity_y -= $70` local semantics with the `-$0600` floor, satisfies its `MOVE` request through the translated 8.8 motion helpers, resolves ROM terrain and returns to state 1 on landing.
+The former generic type-`$73` actor is now identified as the **Sign**. Its type
+table callback remains `$BF:8453`, which advances animation and enters the common
+object renderer. Supported-ROM validation no longer applies the portable
+touch-deactivate test policy to this object: the Sign remains active.
 
-The terrain bridge now resolves a full player collision envelope. Three leading-side probes stop horizontal motion against solid cells, while three head probes stop upward motion at solid undersides. Ground, wall and ceiling attributes are retained separately for later material-specific handlers. Water, damage, conveyor and other effects are still intentionally unresolved.
+The common barrel family is now catalogued:
 
-A first scheduler-driven animated actor path is also measurable. Original object type `$73` selects callback `$BF:8453`; the runtime verifies that callback, advances the existing animation interpreter and sends the selected frame through OAM and graphics DMA. A clean-room touch-deactivate policy is available for integration tests, but it is not claimed to reproduce the original identity or gameplay behavior of type `$73`.
+| Type | Object | Callback | Idle animation |
+|---:|---|---:|---:|
+| `$22` | Steel Keg | `$BF:CF0C` | `$00D1` |
+| `$23` | Barrel | `$BF:CF0C` | `$00D2` |
+| `$24` | Rope Barrel | `$BF:CF0C` | `$00D3` |
+| `$25` | Oil Drum | `$BF:83A0` | `$00D4` |
+| `$26` | DK Barrel | `$BF:CF0C` | `$00D5` |
+| `$27` | TNT Barrel | `$BF:CF0C` | `$00D6` |
 
-The authentic visual path remains connected:
+`barrel_runtime` translates the local semantics of all ten states selected by
+the common `$BF:CF0C` dispatcher. It models initialization, animation/render
+paths, held/thrown transitions, Steel Keg cleanup, DK Barrel release requests,
+TNT countdown/explosion requests, break sounds, explosion-script spawning and
+the reciprocal Manky Kong link check. Every helper not yet translated is exposed
+through an explicit required-call mask. The Oil Drum is excluded because it has
+a different callback.
+
+The authentic player visual path remains connected:
 
 ```text
 input
@@ -44,20 +74,20 @@ input
 → PC render
 ```
 
-The bounded SPC700 and clean-room IPL work from the previous stage remains: startup reaches `$FFC0`, the public transfer protocol can upload bytes and the loaded driver can be relaunched at `$05E8`. DSP music and effects are not implemented.
+The bounded SPC700 and clean-room IPL work remains: startup reaches `$FFC0`, the
+public transfer protocol can upload bytes and the loaded driver can be relaunched
+at `$05E8`. DSP music and effects are not implemented.
 
 Current supported-ROM gameplay validation additionally checks:
 
 ```text
-terrain_floor=351 terrain_center=367 terrain_attr=0000 terrain_point=1 terrain_point_attr=0000 terrain_camera=48
-live_frames=15 live_dispatch=17 live_local=16 live_plan=1
-live_state=1 live_handler=BF87FD
-actor_callback=BF8453 actor_pieces=12 actor_dma=576 actor_touch=1
+sign_callback=BF8453 sign_pieces=12 sign_dma=576 sign_active=1
+barrel_states=10 barrel_callback=BFCF0C
+barrel_explode=1 barrel_spawns=2 barrel_release=1
 ```
 
-The validator still checks the existing dispatcher signature, frame layout, OAM/DMA, SPC driver image, fixed-point motion and IPL transfer results.
-
-This is still not a complete playable or pixel-perfect port. The live bridge currently executes the normal grounded plan and airborne state-11 path. The collision geometry now includes floor, wall and ceiling contacts, but material-specific effects, original actor behavior, progression, menus and full audio remain major blockers.
+The validator still checks the existing player-dispatch signature, terrain,
+frame layout, OAM/DMA, SPC driver image, fixed-point motion and IPL transfer.
 
 ## ROM required locally
 
@@ -75,9 +105,13 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-There are now **89 automated tests configured**: 88 C tests and one Python control-flow test. Seventeen focused local tests pass with `-Wall -Wextra -Wpedantic -Werror`, including ROM terrain placement, high-X levels, side/ceiling contacts, jumping/landing, live dispatcher transitions, the scheduler-driven actor callback, authentic visual construction and the clean-room IPL bridge.
+There are now **91 automated tests configured**: 90 C tests and one Python
+control-flow test. The two new focused tests for object identity and the common
+barrel dispatcher pass locally with `-Wall -Wextra -Wpedantic -Werror`. The
+entire 91-test project was not rerun in this stage, and no remote CI result is
+claimed.
 
-## Validate translated gameplay, terrain and SPC handoff
+## Validate translated gameplay, objects and SPC handoff
 
 ```bash
 ./build/dk1_gameplay_validate \
@@ -94,18 +128,27 @@ When X11 is available:
   0 384 224
 ```
 
-Q/E or the mapped L/R inputs accelerate the player; Z/B jumps. With the ROM-aware initializer, the player starts on original terrain and the frontend reports the current dispatcher state and terrain attributes.
+Q/E or the mapped L/R inputs accelerate the player; Z/B jumps. With the
+ROM-aware initializer, the player starts on original terrain.
 
 ## Accuracy boundary
 
-Terrain shape equations and flags follow the existing clean-room translations of `$81:8409` and the level terrain records at `$81:8B94-$81:8C4A`. The live airborne path calls the translated state-11 handler rather than reimplementing its gravity separately. Material attributes are surfaced but many material-specific side effects remain intentionally unimplemented.
+Object names are corroborated against a public symbolic DKC1 disassembly, while
+callbacks, state tables, local instructions, animations and deterministic
+behavior are checked against the supported Rev 2 ROM. No source or asset data
+from that project is copied into this repository.
 
-## What still blocks gameplay
+## What still blocks a real 100%
 
-- Expand the live bridge from states 1/11 to the complete controller-driven state transition graph.
-- Implement material-specific collision side effects and more exact corner/neighbor transitions.
+- Expand the live player bridge beyond states 1 and 11.
+- Connect the common barrel dispatcher to live object spawning, collision,
+  ownership, pickup and throwing.
+- Translate the separate Oil Drum callback and original behavior of enemies,
+  collectibles, signs and level-completion actors.
+- Implement confirmed material-specific collision effects.
 - Initialize the real two-player object pair and linked objects from level data.
-- Identify and translate original behavior for common enemies, barrels and collectibles; the current type-$73 actor path validates scheduling/animation/render only.
-- Continue the loaded SPC driver into its command/timer loop and implement DSP voices, BRR, music and effects.
-- Implement menus, progression and SRAM compatibility.
-- Compare native frame/input/state/OAM/VRAM/APUIO traces against an emulator reference.
+- Continue the loaded SPC driver into its command/timer loop and implement DSP,
+  BRR, music and effects.
+- Implement level completion, menus, progression and SRAM compatibility.
+- Compare native frame/input/state/object/OAM/VRAM/APUIO traces against an
+  emulator reference.

@@ -1,43 +1,57 @@
 # Progress accounting
 
-## Current total: 98%
+## Current total: 98% — held intentionally
 
-Ninety-eight percent refers to completed engineering infrastructure and translated systems, not ninety-eight percent playable gameplay.
+This stage does **not** increase the headline percentage. Ninety-eight percent
+refers to engineering infrastructure and translated systems, not ninety-eight
+percent playable gameplay. Reaching 100% now requires a complete original-
+compatible level loop rather than more isolated tables.
 
-The public headline remains below 100% because a complete original-compatible level loop, original actor behaviors, progression and audible DSP output are still absent.
+## Completed while remaining at 98%
 
-## Completed in the 97-to-98% stage
+### Correct identity for type `$73`
 
-### Player floor/wall/ceiling envelope
+- Confirmed normal object type `$73` as the Sign.
+- Preserved its table callback `$BF:8453` and the existing scheduler → animation
+  → OAM/DMA path.
+- Removed the portable touch-deactivate policy from the supported-ROM actor
+  test and gameplay validator; the Sign remains active after contact.
+- Kept the policy available only as an explicitly non-original host/test option.
 
-- Added `dk1_rom_terrain_point_solid`, backed by the existing ROM collision map and translated shape curves.
-- Added leading-side probes at lower body, center and upper body positions.
-- Horizontal collisions restore the old wrapped 16-bit X coordinate and clear velocity, target velocity and subpixel X.
-- Added three head probes that stop upward movement at solid cell undersides.
-- Ground, wall and ceiling attributes are kept separately, along with left/right/ceiling flags and contact counters.
-- Material changes are measurable, but material-specific damage, water and conveyor behavior is not invented.
+### Confirmed barrel family catalog
 
-### Scheduler-driven animated actor callback
+- Added identities for Steel Keg `$22`, Barrel `$23`, Rope Barrel `$24`, Oil Drum
+  `$25`, DK Barrel `$26` and TNT Barrel `$27`.
+- Recorded idle animation IDs `$D1-$D6`.
+- Verified that `$22/$23/$24/$26/$27` use callback `$BF:CF0C`.
+- Recorded the Oil Drum's separate callback `$BF:83A0` and excluded it from the
+  common dispatcher runtime.
 
-- Added `object_actor_runtime` for original object type `$73` / callback `$BF:8453`.
-- Runs the object through the original primary scheduler pass.
-- Verifies the callback selected by the type table.
-- Advances the translated animation interpreter.
-- Builds the resulting frame through the confirmed OAM and frame-DMA paths.
-- The validation frame is `$0330`: 12 pieces and 576 graphics bytes.
-- Touch-deactivate is an explicitly clean-room interaction policy, not a claim about type `$73`'s original game identity.
+### Common barrel state dispatcher
+
+- Added `barrel_runtime` for the ten-state table at `$BF:CF17`.
+- Implemented local semantics for handlers `$BF:CF2B`, `$CF38`, `$CF3F`,
+  `$CFCC`, `$D117`, `$D156`, `$D185`, `$D198`, `$D1C7` and `$D1DD`.
+- Covered initialization, motion/animation/render paths, Steel Keg cleanup,
+  break/despawn paths, TNT countdown/explosion, two explosion-script requests,
+  DK Barrel Kong release requests and Manky Kong reciprocal-link validation.
+- Exposed unresolved JSR/JSL helpers through a 64-bit required-call mask.
 
 ## Validation
 
-- Added `player_terrain_envelope` and `object_actor_runtime` tests.
-- Focused validation increases from 15 to 17 passing tests with `-Wall -Wextra -Wpedantic -Werror`.
-- Configured project validation increases from 87 to 89 tests: 88 C tests plus the Python control-flow test.
-- The gameplay validator checks a solid ROM terrain point and the type-$73 scheduler/animation/OAM/DMA/touch pipeline.
+- Added `object_identity` and `barrel_runtime` test targets.
+- Configured project validation increases from 89 to 91 tests: 90 C tests plus
+  the Python control-flow test.
+- Both new tests pass locally with `-Wall -Wextra -Wpedantic -Werror`.
+- Supported-ROM gameplay validation now expects an active Sign and deterministic
+  TNT/DK Barrel results rather than a fake Sign disappearance.
+- The complete 91-test suite and remote CI were not run in this stage.
 
 ## Next measurable targets
 
-- Map material attribute values to their confirmed original side-effect handlers.
-- Expand the live controller bridge beyond states 1 and 11.
-- Identify and translate one original barrel or enemy state machine rather than using the generic animated-render actor callback.
-- Continue the loaded SPC driver into its command/timer loop and implement DSP/BRR output.
-- Implement level completion, menus, progression and SRAM compatibility.
+- Connect one common Barrel object to the live scheduler, terrain collision,
+  player pickup/throw state and authentic animation/OAM/DMA path.
+- Translate the Oil Drum's separate callback.
+- Expand the live player controller graph beyond states 1 and 11.
+- Implement material side effects and level completion.
+- Continue the SPC driver command/timer path and DSP output.

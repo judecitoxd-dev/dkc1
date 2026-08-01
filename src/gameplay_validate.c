@@ -2,12 +2,14 @@
 #include <string.h>
 #include "dk1/apu_boot_image.h"
 #include "dk1/apu_driver_catalog.h"
+#include "dk1/barrel_runtime.h"
 #include "dk1/nmi_vram_dma.h"
 #include "dk1/level_terrain_config.h"
 #include "dk1/object_actor_runtime.h"
 #include "dk1/object_animation_script.h"
 #include "dk1/object_frame_dma.h"
 #include "dk1/object_frame_layout.h"
+#include "dk1/object_identity.h"
 #include "dk1/object_screen_oam.h"
 #include "dk1/player_coverage.h"
 #include "dk1/player_motion.h"
@@ -37,8 +39,12 @@ int main(int argc, char **argv) {
     Dk1PlayerLiveRuntime live_player;
     uint16_t terrain_camera_y = 0u;
     unsigned live_frames = 0u;
-    Dk1ObjectActorRuntime actor;
-    bool actor_touch = false;
+    Dk1ObjectActorRuntime sign_actor;
+    bool sign_interaction = true;
+    Dk1ObjectIdentity sign_identity, barrel_identity;
+    Dk1BarrelObject tnt_barrel = {0}, dk_barrel = {0};
+    Dk1BarrelRuntimeInputs barrel_inputs = {0};
+    Dk1BarrelRuntimeResult tnt_result, dk_result;
     Dk1TerrainSample solid_point = {0};
     bool terrain_point_solid = false;
     Dk1ObjectAnimationScriptState animation;
@@ -109,14 +115,37 @@ int main(int argc, char **argv) {
             ++invalid;
     }
 
-    if (!dk1_object_actor_spawn(&actor, &rom, 3u, 0u, 100u, 80,
-                                DK1_ACTOR_INTERACTION_TOUCH_DEACTIVATE) ||
-        !dk1_object_actor_step(&actor, &rom, &visual_base, transform, style, 0u,
-                               100u, 80, 8, 8, &actor_touch) ||
-        !actor_touch || actor.active ||
-        actor.callback_pc != DK1_ANIMATED_RENDER_CALLBACK_PC ||
-        actor.animation.frame != 0x0330u || actor.visual.pieces != 12u ||
-        actor.visual.dma_bytes != 576u)
+    if (!dk1_object_identity_get(DK1_OBJECT_TYPE_SIGN, &sign_identity) ||
+        sign_identity.callback_pc != DK1_SIGN_CALLBACK_PC ||
+        !dk1_object_identity_get(DK1_OBJECT_TYPE_BARREL, &barrel_identity) ||
+        barrel_identity.callback_pc != DK1_COMMON_BARREL_CALLBACK_PC)
+        ++invalid;
+
+    if (!dk1_object_actor_spawn(&sign_actor, &rom, 3u, 0u, 100u, 80,
+                                DK1_ACTOR_INTERACTION_NONE) ||
+        !dk1_object_actor_step(&sign_actor, &rom, &visual_base, transform, style, 0u,
+                               100u, 80, 8, 8, &sign_interaction) ||
+        sign_interaction || !sign_actor.active ||
+        sign_actor.type_id != DK1_OBJECT_TYPE_SIGN ||
+        sign_actor.callback_pc != DK1_SIGN_CALLBACK_PC ||
+        sign_actor.animation.frame != 0x0330u || sign_actor.visual.pieces != 12u ||
+        sign_actor.visual.dma_bytes != 576u)
+        ++invalid;
+
+    tnt_barrel.type_id = DK1_OBJECT_TYPE_TNT_BARREL;
+    tnt_barrel.state = 5u;
+    tnt_barrel.timer_1491 = 0u;
+    if (!dk1_barrel_runtime_step(&tnt_barrel, barrel_inputs, &tnt_result) ||
+        !tnt_result.exploded || !tnt_result.destroyed ||
+        tnt_result.spawn_script_count != 2u)
+        ++invalid;
+
+    dk_barrel.type_id = DK1_OBJECT_TYPE_DK_BARREL;
+    dk_barrel.state = 6u;
+    barrel_inputs.bba574_carry = true;
+    if (!dk1_barrel_runtime_step(&dk_barrel, barrel_inputs, &dk_result) ||
+        !dk_result.destroyed || !dk_result.released_kong ||
+        dk_result.sound_id != DK1_SOUND_BREAK_BARREL)
         ++invalid;
 
     dk1_spc700_bootstrap_init(&spc, &apu);
@@ -193,10 +222,12 @@ int main(int argc, char **argv) {
            "translation=%016llX apu_boot=%016llX animation=%04X "
            "frame_pieces=%u frame_layout=%016llX screen_oam=%u "
            "frame_dma_records=%u frame_dma_bytes=%u visual_pieces=%u visual_dma=%u "
-           "actor_callback=%06X actor_pieces=%u actor_dma=%u actor_touch=%u spc_steps=%llu "
+           "sign_callback=%06X sign_pieces=%u sign_dma=%u sign_active=%u "
+           "barrel_states=%u barrel_callback=%06X barrel_explode=%u "
+           "barrel_spawns=%u barrel_release=%u spc_steps=%llu "
            "driver_code=%016llX driver_data=%016llX driver_ram=%016llX "
            "driver_steps=%llu driver_pc=%04X driver_stop=%u driver_vector=%04X "
-           "motion_x=%d motion_y=%d motion_vx=%04X motion_vy=%04X "
+           "motion_x=%u motion_y=%d motion_vx=%04X motion_vy=%04X "
            "motion_subx=%04X motion_suby=%04X terrain_floor=%d terrain_center=%d "
            "terrain_attr=%04X terrain_point=%u terrain_point_attr=%04X terrain_camera=%u "
            "live_frames=%u live_dispatch=%llu "
@@ -217,10 +248,15 @@ int main(int argc, char **argv) {
            (unsigned)frame_dma.bytes,
            (unsigned)visual_stats.pieces,
            (unsigned)visual_stats.dma_bytes,
-           (unsigned)actor.callback_pc,
-           (unsigned)actor.visual.pieces,
-           (unsigned)actor.visual.dma_bytes,
-           actor_touch ? 1u : 0u,
+           (unsigned)sign_actor.callback_pc,
+           (unsigned)sign_actor.visual.pieces,
+           (unsigned)sign_actor.visual.dma_bytes,
+           sign_actor.active ? 1u : 0u,
+           (unsigned)DK1_BARREL_STATE_COUNT,
+           (unsigned)DK1_BARREL_DISPATCH_PC,
+           tnt_result.exploded ? 1u : 0u,
+           (unsigned)tnt_result.spawn_script_count,
+           dk_result.released_kong ? 1u : 0u,
            (unsigned long long)spc.instructions,
            (unsigned long long)driver.code_signature,
            (unsigned long long)driver.data_signature,
@@ -229,7 +265,7 @@ int main(int argc, char **argv) {
            (unsigned)driver_trace.pc,
            (unsigned)driver_trace.stop,
            (unsigned)driver_trace.brk_vector,
-           motion.world_x,
+           (unsigned)motion.world_x,
            motion.world_y,
            (unsigned)(uint16_t)motion.velocity_x,
            (unsigned)(uint16_t)motion.velocity_y,

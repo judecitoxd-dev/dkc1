@@ -5,17 +5,23 @@
 #include <stddef.h>
 #include <stdint.h>
 #include "dk1/object_animation_script.h"
+#include "dk1/object_identity.h"
 #include "dk1/object_scheduler.h"
 #include "dk1/player_visual_runtime.h"
 
-/* Type $73 maps through $BF:817C to callback $BF:8453.  That callback
- * performs the translated animation step ($BE:80E1) and then the common
- * object render path ($BD:F503). */
-#define DK1_ANIMATED_RENDER_OBJECT_TYPE 115u
-#define DK1_ANIMATED_RENDER_CALLBACK_PC 0xBF8453u
+/* Normal object type $73 is the level Sign.  Its dispatch-table callback at
+ * $BF:8453 performs the translated animation step ($BE:80E1) followed by the
+ * common object render path ($BD:F503). */
+#define DK1_SIGN_OBJECT_TYPE DK1_OBJECT_TYPE_SIGN
+#define DK1_SIGN_ACTOR_CALLBACK_PC DK1_SIGN_CALLBACK_PC
 
-/* Interaction modes below are portable host policies.  They are not claimed
- * to be the original type-$73 gameplay response. */
+/* Backward-compatible names retained for existing callers. */
+#define DK1_ANIMATED_RENDER_OBJECT_TYPE DK1_SIGN_OBJECT_TYPE
+#define DK1_ANIMATED_RENDER_CALLBACK_PC DK1_SIGN_ACTOR_CALLBACK_PC
+
+/* These interaction modes are portable host/test policies.  In particular,
+ * TOUCH_DEACTIVATE is not the original Sign behavior and is not used by the
+ * supported-ROM gameplay validator. */
 typedef enum Dk1ActorInteractionMode {
     DK1_ACTOR_INTERACTION_NONE = 0,
     DK1_ACTOR_INTERACTION_TOUCH_DEACTIVATE = 1
