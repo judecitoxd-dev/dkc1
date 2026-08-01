@@ -68,6 +68,20 @@ static void release_additional_gnawty(Dk1SoftwareGnawtySlot *slot) {
     slot->ready = false;
 }
 
+static void refresh_gnawty_active_count(Dk1SoftwareFrontend *f) {
+    size_t i;
+    if (f == NULL)
+        return;
+    f->gnawty_active_count = 0u;
+    if (f->gnawty_ready && f->gnawty.active)
+        ++f->gnawty_active_count;
+    for (i = 0u; i < DK1_SOFTWARE_FRONTEND_EXTRA_GNAWTIES; ++i) {
+        const Dk1SoftwareGnawtySlot *slot = &f->additional_gnawties[i];
+        if (slot->ready && slot->runtime != NULL && slot->runtime->active)
+            ++f->gnawty_active_count;
+    }
+}
+
 static bool update_gnawty_slot(Dk1GnawtyRuntime *runtime,
                                const Dk1LevelObjectStreamEntry *entry) {
     if (runtime == NULL || entry == NULL ||
@@ -191,6 +205,7 @@ void dk1_software_frontend_dispose(Dk1SoftwareFrontend *f) {
     f->gnawty.active = false;
     f->gnawty_ready = false;
     f->gnawty_active_count = 0u;
+    f->gnawty_capacity_overflow_count = 0u;
 }
 
 bool dk1_software_frontend_spawn_barrel(Dk1SoftwareFrontend *f,
@@ -278,14 +293,7 @@ bool dk1_software_frontend_sync_gnawty(Dk1SoftwareFrontend *f) {
             return false;
     }
 
-    if (f->gnawty_ready && f->gnawty.active)
-        ++f->gnawty_active_count;
-    for (i = 0u; i < DK1_SOFTWARE_FRONTEND_EXTRA_GNAWTIES; ++i) {
-        if (f->additional_gnawties[i].ready &&
-            f->additional_gnawties[i].runtime != NULL &&
-            f->additional_gnawties[i].runtime->active)
-            ++f->gnawty_active_count;
-    }
+    refresh_gnawty_active_count(f);
     return true;
 }
 
@@ -348,6 +356,7 @@ bool dk1_software_frontend_step(const Dk1SceneMemory *s, uint16_t held,
         if (!slot->runtime->active)
             release_additional_gnawty(slot);
     }
+    refresh_gnawty_active_count(f);
 
     if (f->barrel_ready && f->barrel.live.active) {
         if (!dk1_barrel_scene_step(&f->barrel, f->source_rom,
