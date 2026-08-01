@@ -18,6 +18,14 @@ int main(void) {
                                             96u, 64u,
                                             &frontend, &stats));
     assert(stats.entrance_id == 0x0016u);
+    assert(stats.object_list_imported);
+    assert(stats.primary_import.list.terminated);
+    assert(stats.primary_import.list.record_count == 66u);
+    assert(stats.primary_import.imported_count <=
+           DK1_PRIMARY_OBJECT_SLOT_COUNT);
+    assert(stats.primary_import.callback_count ==
+           stats.primary_import.imported_count);
+    assert(stats.primary_import.scheduler_verified);
     assert(stats.barrel_found && stats.barrel_spawned);
     assert(stats.barrel_spawn.record_index == 35u);
     assert(stats.barrel_spawn.record.source_pc == 0xBD96F4u);
