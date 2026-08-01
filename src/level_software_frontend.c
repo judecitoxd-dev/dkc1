@@ -45,13 +45,14 @@ bool dk1_level_software_frontend_init(const Dk1RomImage *rom,
     if (!dk1_level_object_spawn_find(
             rom, entrance_id, DK1_OBJECT_TYPE_BARREL, 0u,
             DK1_PRIMARY_OBJECT_FIRST_SLOT, &output->barrel_spawn))
-        return true;
+        return dk1_software_frontend_sync_barrels(frontend);
     output->barrel_found = true;
     if (!dk1_software_frontend_spawn_barrel(
             frontend, output->barrel_spawn.type_id,
             output->barrel_spawn.record.world_x,
             output->barrel_spawn.record.world_y))
         return false;
+    frontend->barrel_record_index = output->barrel_spawn.record_index;
     output->barrel_spawned = true;
-    return true;
+    return dk1_software_frontend_sync_barrels(frontend);
 }
