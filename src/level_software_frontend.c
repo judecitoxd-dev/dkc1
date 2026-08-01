@@ -17,6 +17,10 @@ bool dk1_level_software_frontend_init(const Dk1RomImage *rom,
     if (!dk1_software_frontend_init_with_rom(rom, scene, width, height,
                                              frontend))
         return false;
+
+    output->object_list_imported = dk1_level_object_import_primary(
+        rom, entrance_id, &output->primary_import);
+
     if (!dk1_level_object_spawn_find(
             rom, entrance_id, DK1_OBJECT_TYPE_BARREL, 0u,
             DK1_PRIMARY_OBJECT_FIRST_SLOT, &output->barrel_spawn))
