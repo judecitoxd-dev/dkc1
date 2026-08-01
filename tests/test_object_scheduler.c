@@ -93,9 +93,10 @@ int main(void) {
     state.type_id[2] = 1u;
     state.type_id[3] = 2u;
     result = dk1_object_run_frame(&state, log_visit, &log);
-    assert(result.primary_callbacks == 1u);
-    assert(log.slots[0] == 2u);
+    assert(result.primary_callbacks == 2u);
+    assert(log.slots[0] == 2u && log.slots[1] == 3u);
     assert(log.passes[0] == DK1_OBJECT_PASS_PRIMARY_SPECIAL);
+    assert(log.passes[1] == DK1_OBJECT_PASS_PRIMARY_SPECIAL);
 
     return 0;
 }
