@@ -76,6 +76,16 @@ int main(int argc, char **argv) {
                                           &frontend, &source_stats))
         goto cleanup;
 
+    if (source_stats.object_stream_initialized) {
+        fprintf(stderr,
+                "level objects: catalog=%zu active=%zu overflow=%zu "
+                "camera=$%04X width=%u\n",
+                source_stats.stream_catalog_count,
+                source_stats.stream_active_count,
+                source_stats.stream_overflow_count,
+                frontend.level_objects.camera_x,
+                frontend.level_objects.viewport_width);
+    }
     if (source_stats.barrel_spawned) {
         fprintf(stderr,
                 "level object: Barrel record=%zu source=$%06X x=$%04X y=$%04X "
