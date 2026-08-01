@@ -129,6 +129,16 @@ target_link_libraries(dk1_player_validate PRIVATE dk1_core)
 add_executable(dk1_gameplay_validate src/gameplay_validate.c)
 target_link_libraries(dk1_gameplay_validate PRIVATE dk1_core)
 
+if(WIN32)
+    add_executable(dk1_win32 WIN32 src/win32_frontend.c)
+    target_link_libraries(dk1_win32 PRIVATE dk1_core user32 gdi32 comdlg32)
+    if(MSVC)
+        set_property(TARGET dk1_win32 PROPERTY
+            MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+        target_compile_options(dk1_win32 PRIVATE /W4)
+    endif()
+endif()
+
 enable_testing()
 foreach(test_name IN ITEMS
     player_motion
