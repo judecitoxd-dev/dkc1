@@ -20,6 +20,10 @@ int main(void) {
     assert(flow.state_changed);
 
     dk1_preview_flow_step(&flow, 0u, DK1_HOST_BUTTON_START, false);
+    assert(flow.state == DK1_PREVIEW_FLOW_MENU);
+    assert(dk1_preview_flow_state_name(flow.state)[0] == 'm');
+
+    dk1_preview_flow_step(&flow, 0u, DK1_HOST_BUTTON_A, false);
     assert(flow.state == DK1_PREVIEW_FLOW_MAP);
 
     dk1_preview_flow_step(&flow, 0u, DK1_HOST_BUTTON_B, false);
@@ -35,7 +39,6 @@ int main(void) {
 
     dk1_preview_flow_step(&flow, 0u, DK1_HOST_BUTTON_A, false);
     assert(flow.state == DK1_PREVIEW_FLOW_MAP);
-    assert(flow.transitions == 5u);
-    assert(dk1_preview_flow_state_name(flow.state)[0] == 'm');
+    assert(flow.transitions == 6u);
     return 0;
 }
