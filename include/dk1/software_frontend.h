@@ -8,6 +8,7 @@
 #include "dk1/dynamic_stream.h"
 #include "dk1/gnawty_runtime.h"
 #include "dk1/host_input.h"
+#include "dk1/level_barrel_pool.h"
 #include "dk1/level_object_stream.h"
 #include "dk1/oam_image.h"
 #include "dk1/player_combat_runtime.h"
@@ -39,8 +40,11 @@ typedef struct Dk1SoftwareFrontend {
     Dk1PlayerLiveRuntime player_live;
     Dk1PlayerCombatRuntime player_combat;
     Dk1PlayerTerrainRuntime player_terrain;
+    /* The first Barrel remains embedded for compatibility with existing
+     * probes. Other visible source barrels are managed by streamed_barrels. */
     Dk1BarrelSceneRuntime barrel;
-    /* The first actor remains embedded for source compatibility with existing
+    Dk1LevelBarrelPool streamed_barrels;
+    /* The first Gnawty remains embedded for compatibility with existing
      * probes. Additional visible Gnawties are allocated only while streamed. */
     Dk1GnawtyRuntime gnawty;
     Dk1SoftwareGnawtySlot
@@ -48,6 +52,7 @@ typedef struct Dk1SoftwareFrontend {
     Dk1DynamicStreamState stream;
     Dk1LevelObjectStream level_objects;
     const Dk1RomImage *source_rom;
+    size_t barrel_record_index;
     size_t gnawty_record_index;
     size_t gnawty_active_count;
     size_t gnawty_capacity_overflow_count;
@@ -72,6 +77,7 @@ bool dk1_software_frontend_spawn_barrel(Dk1SoftwareFrontend *,
                                         uint16_t type_id,
                                         uint16_t world_x,
                                         int16_t world_y);
+bool dk1_software_frontend_sync_barrels(Dk1SoftwareFrontend *);
 /* Connects every currently visible source Gnawty up to the original primary
  * object-pool capacity. The camera stream remains authoritative for record and
  * original primary-slot lifetime. */
