@@ -14,6 +14,7 @@ int main(void) {
     size_t i;
     size_t gnawty_catalog_index = 0u;
     bool gnawty_catalogued = false;
+    bool multiple_found = false;
     if (path == NULL)
         path = "/mnt/data/Donkey Kong Country (USA) (Rev 2).sfc";
     assert(dk1_rom_load_file(path, &owned, &rom));
@@ -113,6 +114,38 @@ int main(void) {
     assert(frontend.gnawty.visual.pieces > 0u);
     assert(frontend.gnawty.visual.dma_bytes > 0u);
 
+    {
+        uint32_t camera_x;
+        uint32_t maximum = (uint32_t)scene.camera.maximum_x + 384u;
+        for (camera_x = 0u; camera_x <= maximum; camera_x += 16u) {
+            size_t ready_count = 0u;
+            frontend.runtime.view.camera_x = (uint16_t)camera_x;
+            assert(dk1_level_object_stream_update(&frontend.level_objects,
+                                                   (uint16_t)camera_x,
+                                                   384u, 128u, 128u));
+            assert(dk1_software_frontend_sync_gnawty(&frontend));
+            if (frontend.gnawty_ready)
+                ++ready_count;
+            for (i = 0u; i < DK1_SOFTWARE_FRONTEND_EXTRA_GNAWTIES; ++i) {
+                if (frontend.additional_gnawties[i].ready) {
+                    assert(frontend.additional_gnawties[i].runtime != NULL);
+                    assert(frontend.additional_gnawties[i].runtime->active);
+                    ++ready_count;
+                }
+            }
+            assert(ready_count == frontend.gnawty_active_count);
+            if (ready_count >= 2u) {
+                multiple_found = true;
+                break;
+            }
+        }
+    }
+    assert(multiple_found);
+    assert(frontend.gnawty_active_count >= 2u);
+    assert(frontend.gnawty_active_count <=
+           DK1_SOFTWARE_FRONTEND_GNAWTY_CAPACITY);
+
+    dk1_software_frontend_dispose(&frontend);
     dk1_rom_free(&owned);
     return 0;
 }
