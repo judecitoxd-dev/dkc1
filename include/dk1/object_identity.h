@@ -8,7 +8,8 @@
 typedef enum Dk1ObjectIdentityKind {
     DK1_OBJECT_IDENTITY_UNKNOWN = 0,
     DK1_OBJECT_IDENTITY_BARREL_FAMILY,
-    DK1_OBJECT_IDENTITY_SCENERY
+    DK1_OBJECT_IDENTITY_SCENERY,
+    DK1_OBJECT_IDENTITY_ENEMY
 } Dk1ObjectIdentityKind;
 
 typedef struct Dk1ObjectIdentity {
@@ -25,10 +26,12 @@ typedef struct Dk1ObjectIdentity {
 #define DK1_OBJECT_TYPE_OIL_DRUM    0x0025u
 #define DK1_OBJECT_TYPE_DK_BARREL   0x0026u
 #define DK1_OBJECT_TYPE_TNT_BARREL  0x0027u
+#define DK1_OBJECT_TYPE_GNAWTY      0x004Du
 #define DK1_OBJECT_TYPE_SIGN        0x0073u
 
 #define DK1_COMMON_BARREL_CALLBACK_PC 0xBFCF0Cu
 #define DK1_OIL_DRUM_CALLBACK_PC      0xBF83A0u
+#define DK1_GNAWTY_CALLBACK_PC        0xBF840Cu
 #define DK1_SIGN_CALLBACK_PC          0xBF8453u
 
 #define DK1_ANIMATION_STEEL_KEG_IDLE   0x00D1u
@@ -37,9 +40,13 @@ typedef struct Dk1ObjectIdentity {
 #define DK1_ANIMATION_OIL_DRUM_IDLE    0x00D4u
 #define DK1_ANIMATION_DK_BARREL_IDLE   0x00D5u
 #define DK1_ANIMATION_TNT_BARREL_IDLE  0x00D6u
+#define DK1_ANIMATION_GNAWTY_WALK      0x015Au
+#define DK1_ANIMATION_GNAWTY_TURN      0x015Bu
+#define DK1_ANIMATION_GNAWTY_DEAD      0x015Cu
 
 size_t dk1_object_identity_count(void);
 bool dk1_object_identity_get(uint16_t type_id, Dk1ObjectIdentity *identity);
 bool dk1_object_identity_is_barrel_family(uint16_t type_id);
+bool dk1_object_identity_is_enemy(uint16_t type_id);
 
 #endif
