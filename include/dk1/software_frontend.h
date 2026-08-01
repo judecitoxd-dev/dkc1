@@ -32,7 +32,6 @@ typedef struct Dk1SoftwareFrontend {
     Dk1LevelObjectStream level_objects;
     const Dk1RomImage *source_rom;
     size_t gnawty_record_index;
-    size_t gnawty_defeated_record_index;
     uint8_t obsel;
     int16_t marker_x, marker_y;
     uint16_t marker_tile;
@@ -40,7 +39,7 @@ typedef struct Dk1SoftwareFrontend {
     uint16_t player_frame, player_tile_base, player_vertical_origin;
     bool player_visual_ready, player_terrain_ready, barrel_ready;
     bool level_objects_ready, gnawty_ready;
-    bool gnawty_defeated_record_valid;
+    bool defeated_level_records[DK1_LEVEL_OBJECT_STREAM_MAX_ENTRIES];
 } Dk1SoftwareFrontend;
 
 bool dk1_software_frontend_init(const Dk1SceneMemory *, uint16_t, uint16_t,
