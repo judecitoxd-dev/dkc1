@@ -9,7 +9,7 @@ int main(void) {
     Dk1GnawtyRuntime gnawty;
     Dk1GnawtyStepResult result;
     Dk1PlayerPreviewRuntime player;
-    Dk1VramImage base_vram = {{0}};
+    Dk1VramImage base_vram = {0};
     uint16_t start_x;
     unsigned i;
 
