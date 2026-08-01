@@ -28,6 +28,7 @@ add_library(dk1_core
     src/level_object_spawn.c
     src/level_object_import.c
     src/level_object_stream.c
+    src/level_barrel_pool.c
     src/level_software_frontend.c
     src/object_actor_runtime.c
     src/object_screen_oam.c
@@ -169,6 +170,7 @@ foreach(test_name IN ITEMS
     level_object_spawn
     level_object_import
     level_object_stream
+    level_barrel_pool
     level_software_frontend
     object_actor_runtime
     object_screen_oam
