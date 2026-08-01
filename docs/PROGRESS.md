@@ -8,7 +8,7 @@ completable and the full game is not close to a playable 99%.**
 The engineering percentage tracks foundational systems: original level records,
 B5 type definitions, bounded object-pool import, camera-driven slot lifecycle,
 scheduler dispatch, one complete visible Barrel runtime, the first streamed
-enemy runtime and a portable player-damage bridge. It does **not** measure the
+enemy family and a portable player-damage bridge. It does **not** measure the
 fraction of levels, enemies, menus, audio or progression that can be played.
 
 One hundred percent remains reserved for a complete original-compatible game
@@ -53,19 +53,26 @@ loop and repeatable playthrough.
 - Enforces the 25-slot primary pool and verifies every active scheduler callback.
 - The stream advances with `Dk1SoftwareFrontend` as the camera advances.
 
-### First streamed enemy: Gnawty
+### First streamed enemy family: Gnawty
 
 - Catalogued Gnawty as normal object type `$004D` with callback `$BF:840C`.
 - Connected original walk, turn and dead animation IDs `$015A/$015B/$015C`.
 - Added `gnawty_runtime` with verified scheduler dispatch, fixed-point patrol,
   ROM-terrain wall/ledge probes, stomp defeat, player rebound and side-contact
   reporting.
-- Uses the source record and stable camera-stream slot rather than a manual
-  debug spawn.
-- Preserves defeated source-record state so a stomped Gnawty is not recreated
-  by ordinary camera streaming.
+- Uses source records and stable camera-stream slots rather than manual debug
+  spawns.
+- The frontend now binds every visible Gnawty up to the original 25 primary
+  object slots instead of bridging only one actor.
+- Additional runtimes exist only while their source records are streamed; actors
+  are released when they leave the camera envelope or are defeated.
+- Preserves defeated source-record state so stomped Gnawties are not recreated by
+  ordinary camera streaming.
 - Builds original frame layouts through OAM and frame-graphics DMA for PC
   rendering.
+- The ROM-backed frontend test sweeps the complete Jungle Hijinxs camera range,
+  compares active source records with bound runtimes and requires zero Gnawty
+  capacity overflow.
 
 ### Player damage and invulnerability bridge
 
@@ -81,7 +88,8 @@ loop and repeatable playthrough.
 ### Level-aware frontend and Barrel
 
 - Initializes the bounded import and live camera stream.
-- Connects the first active streamed Gnawty to its executable runtime.
+- Connects every active streamed Gnawty to executable enemy runtimes within the
+  original primary-pool limit.
 - Spawns the first normal Barrel source record into the executable scene runtime.
 - The Barrel continues through pickup/hold/throw, fixed-point motion, ROM
   terrain, original animation, frame layout, OAM/DMA and PC rendering.
@@ -106,24 +114,28 @@ callback=BFCF0C
 
 ## Validation
 
-- Existing definition-stack and complete-catalog tests remain configured.
-- Gnawty identity, runtime, streamed frontend integration and whole-cartridge
-  signature reporting remain configured.
-- Added `player_combat_runtime` coverage for knockback direction, accepted and
-  ignored hits, invulnerability expiry and flashing policy.
-- Configured validation increases from 102 to 103 tests: 102 C plus one Python.
-- The standalone player-combat test compiles and executes with
-  `-Wall -Wextra -Wpedantic -Werror`.
-- The complete repository suite and remote CI have not yet been confirmed after
-  this integration.
+- Configured validation contains 104 tests: 103 C executables plus one Python
+  CFG test.
+- The public Linux workflow compiles every target and runs the 86 tests that do
+  not require copyrighted ROM bytes; all 86 passed after the full Gnawty-pool
+  integration.
+- The scheduler special-pass fixture now agrees with the dispatch table: types 1
+  and 2 both carry the special-pass attribute and both callbacks are visited.
+- Python tool syntax validation passes in the same workflow.
+- The Windows x64 workflow configures with MSVC, builds `dk1_win32`, packages it
+  and uploads the preview artifact successfully.
+- The 18 ROM-backed tests remain configured and are intentionally omitted from
+  public CI. They run locally when `DK1_TEST_ROM` points to a legal USA Rev 2
+  cartridge image.
+- Remote CI therefore validates the portable implementation and build system,
+  while source-ROM fidelity tests still require a locally supplied legal ROM.
 
 ## Required for a real 100%
 
-- Translate exact Gnawty callback/shared enemy helpers, original hurt states,
+- Translate the exact Gnawty callback/shared enemy helpers, original hurt states,
   Kong loss/swap and invulnerability timing.
-- Support all simultaneously active enemies rather than one bridged Gnawty.
-- Bind remaining streamed enemies, collectibles, signs, effects and
-  level-completion types to executable actor state machines, collisions and
+- Bind the remaining streamed enemy types, collectibles, signs, effects and
+  level-completion objects to executable actor state machines, collisions and
   visible rendering.
 - Exact player carry/throw states and object ownership links.
 - Material-specific collision behavior.
