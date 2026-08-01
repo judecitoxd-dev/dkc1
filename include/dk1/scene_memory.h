@@ -29,6 +29,17 @@ typedef struct Dk1SceneAssetStats {
     bool palettes_loaded;
 } Dk1SceneAssetStats;
 
+typedef struct Dk1SceneCacheStats {
+    uint64_t rom_signature;
+    size_t bytes_read;
+    size_t bytes_written;
+    bool attempted;
+    bool file_found;
+    bool hit;
+    bool written;
+    bool rejected;
+} Dk1SceneCacheStats;
+
 typedef struct Dk1SceneMemory {
     Dk1SceneRecipe recipe;
     Dk1ScenePackagePlan packages;
@@ -38,7 +49,19 @@ typedef struct Dk1SceneMemory {
     Dk1VramImage vram;
     Dk1CgramImage cgram;
     Dk1SceneAssetStats assets;
+    /* Cache telemetry is intentionally excluded from deterministic scene
+     * signatures: cached and freshly decoded scene contents must compare equal. */
+    Dk1SceneCacheStats cache;
 } Dk1SceneMemory;
+
+bool dk1_scene_memory_prepare(const Dk1RomImage *rom,
+                              uint16_t level_id,
+                              bool special_assets,
+                              bool state_package,
+                              Dk1SceneMemory *scene);
+
+bool dk1_scene_memory_load_assets(const Dk1RomImage *rom,
+                                  Dk1SceneMemory *scene);
 
 bool dk1_scene_memory_load(const Dk1RomImage *rom,
                            uint16_t level_id,
