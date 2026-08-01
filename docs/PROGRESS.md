@@ -1,15 +1,18 @@
 # Progress accounting
 
-## Current total: 99%
+## Current total: 99% engineering foundation
 
-Ninety-nine percent means the engineering foundation reaches original level
-records, B5 type definitions, bounded object-pool import, camera-driven slot
-lifecycle, scheduler dispatch, one complete visible Barrel runtime and the first
-streamed enemy runtime. It does **not** mean the game is ninety-nine percent
-playable.
+**Gameplay completeness is still an early prototype. Jungle Hijinxs is not yet
+completable and the full game is not close to a playable 99%.**
+
+The engineering percentage tracks foundational systems: original level records,
+B5 type definitions, bounded object-pool import, camera-driven slot lifecycle,
+scheduler dispatch, one complete visible Barrel runtime, the first streamed
+enemy runtime and a portable player-damage bridge. It does **not** measure the
+fraction of levels, enemies, menus, audio or progression that can be played.
 
 One hundred percent remains reserved for a complete original-compatible game
-loop and playthrough.
+loop and repeatable playthrough.
 
 ## Completed in the current 99% stage
 
@@ -63,8 +66,17 @@ loop and playthrough.
   by ordinary camera streaming.
 - Builds original frame layouts through OAM and frame-graphics DMA for PC
   rendering.
-- Exact `$BF:840C` helper semantics, player damage/invulnerability and original
-  patrol timing remain an explicit accuracy boundary.
+
+### Player damage and invulnerability bridge
+
+- Added `player_combat_runtime`.
+- Gnawty side contact now applies horizontal/upward fixed-point knockback.
+- Starts a bounded invulnerability timer and ignores repeated overlap hits.
+- Flashes the player in the software renderer while invulnerable.
+- Tracks accepted hits, ignored hits and invulnerable frames in deterministic
+  frontend state.
+- This is portable policy; the exact shared damage helper, Kong loss/swap,
+  original hurt states and timing remain untranslated.
 
 ### Level-aware frontend and Barrel
 
@@ -95,18 +107,24 @@ callback=BFCF0C
 ## Validation
 
 - Existing definition-stack and complete-catalog tests remain configured.
-- Added Gnawty identity coverage, `gnawty_runtime`, streamed frontend integration
-  and whole-cartridge Gnawty signature reporting.
-- Configured validation increases from 101 to 102 tests: 101 C plus one Python.
-- The new Gnawty code has not yet been confirmed by a complete repository run or
-  remote CI, so the headline remains 99%.
+- Gnawty identity, runtime, streamed frontend integration and whole-cartridge
+  signature reporting remain configured.
+- Added `player_combat_runtime` coverage for knockback direction, accepted and
+  ignored hits, invulnerability expiry and flashing policy.
+- Configured validation increases from 102 to 103 tests: 102 C plus one Python.
+- The standalone player-combat test compiles and executes with
+  `-Wall -Wextra -Wpedantic -Werror`.
+- The complete repository suite and remote CI have not yet been confirmed after
+  this integration.
 
-## Required for 100%
+## Required for a real 100%
 
-- Translate exact Gnawty callback/shared enemy helper semantics and player
-  damage/invulnerability responses.
-- Bind remaining streamed enemy, collectible, sign, effect and level-completion
-  types to executable actor state machines, collisions and visible rendering.
+- Translate exact Gnawty callback/shared enemy helpers, original hurt states,
+  Kong loss/swap and invulnerability timing.
+- Support all simultaneously active enemies rather than one bridged Gnawty.
+- Bind remaining streamed enemies, collectibles, signs, effects and
+  level-completion types to executable actor state machines, collisions and
+  visible rendering.
 - Exact player carry/throw states and object ownership links.
 - Material-specific collision behavior.
 - Real two-Kong and linked-object initialization.
