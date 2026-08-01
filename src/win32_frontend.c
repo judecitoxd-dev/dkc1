@@ -9,6 +9,7 @@
 #include "dk1/level_software_frontend.h"
 #include "dk1/preview_flow.h"
 #include "dk1/rom_image.h"
+#include "dk1/scene_asset_cache.h"
 #include "dk1/scene_memory.h"
 
 #define DK1_DEMO_LEVEL 0x0016u
@@ -34,6 +35,7 @@ typedef struct Dk1Win32App {
     bool running;
     bool ready;
     bool route_completed;
+    char cache_path[DK1_SCENE_ASSET_CACHE_PATH_CAPACITY];
 } Dk1Win32App;
 
 static Dk1Win32App *g_app;
@@ -362,13 +364,16 @@ static void convert_frame(Dk1Win32App *app) {
 }
 
 static bool reset_level_runtime(Dk1Win32App *app) {
+    const char *cache_path;
     if (app == NULL || app->scene == NULL)
         return false;
     dk1_software_frontend_dispose(&app->frontend);
     memset(&app->frontend, 0, sizeof(app->frontend));
     memset(&app->source_stats, 0, sizeof(app->source_stats));
-    if (!dk1_scene_memory_load(&app->rom, app->level, false, false,
-                               app->scene) ||
+    cache_path = app->cache_path[0] != '\0' ? app->cache_path : NULL;
+    if (!dk1_scene_memory_load_cached(&app->rom, app->level,
+                                      false, false, cache_path,
+                                      app->scene) ||
         !dk1_level_software_frontend_init(
             &app->rom, app->scene, app->level,
             (uint16_t)app->width, (uint16_t)app->height,
@@ -390,8 +395,13 @@ static bool initialize_game(Dk1Win32App *app, const char *rom_path) {
         return false;
     if (!dk1_rom_load_file(rom_path, &app->owned, &app->rom) ||
         !dk1_rom_identity(&app->rom, &identity) ||
-        !dk1_rom_identity_is_supported_rev2(&identity) ||
-        !reset_level_runtime(app))
+        !dk1_rom_identity_is_supported_rev2(&identity))
+        return false;
+    if (!dk1_scene_asset_cache_default_path(
+            rom_path, app->level, false, false,
+            app->cache_path, sizeof(app->cache_path)))
+        app->cache_path[0] = '\0';
+    if (!reset_level_runtime(app))
         return false;
 
     memset(&app->bitmap_info, 0, sizeof(app->bitmap_info));
@@ -446,18 +456,35 @@ static bool create_window(Dk1Win32App *app, HINSTANCE instance) {
     return app->window != NULL;
 }
 
+static const char *asset_source_name(const Dk1Win32App *app) {
+    if (app == NULL || app->scene == NULL)
+        return "unknown";
+    if (app->scene->cache.hit)
+        return "cache";
+    if (app->scene->cache.written)
+        return "ROM, cache saved";
+    if (app->scene->cache.rejected)
+        return "ROM, cache rebuilt";
+    return "ROM";
+}
+
 static void update_title(Dk1Win32App *app) {
-    char title[256];
+    char title[320];
+    const char *asset_source;
     if (app == NULL || app->window == NULL) return;
+    asset_source = asset_source_name(app);
     if (app->flow.state == DK1_PREVIEW_FLOW_LEVEL) {
         snprintf(title, sizeof(title),
-                 "DK1 preview - Jungle Hijinxs X:%u - "
+                 "DK1 preview - Jungle Hijinxs X:%u - assets: %s - "
                  "A/D move | Z jump | U barrel | Esc exit",
-                 (unsigned)app->frontend.player_preview.motion.world_x);
+                 (unsigned)app->frontend.player_preview.motion.world_x,
+                 asset_source);
     } else {
         snprintf(title, sizeof(title),
-                 "DK1 preview - %s - Enter/Z confirm | Esc exit",
-                 dk1_preview_flow_state_name(app->flow.state));
+                 "DK1 preview - %s - assets: %s - "
+                 "Enter/Z confirm | Esc exit",
+                 dk1_preview_flow_state_name(app->flow.state),
+                 asset_source);
     }
     SetWindowTextA(app->window, title);
 }
