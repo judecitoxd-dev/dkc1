@@ -16,6 +16,6 @@ jobs:
       - name: Test ROM-independent suite
         run: >-
           ctest --test-dir build --output-on-failure
-          -E '^(player_terrain_runtime|player_live_runtime|software_frontend_terrain|spc700_ipl_driver_bridge|player_visual_runtime|gnawty_runtime|barrel_scene_runtime|software_frontend_barrel|level_sprite_records|level_sprite_catalog|level_object_spawn|level_software_frontend|object_actor_runtime|object_screen_oam|object_frame_dma|spc700_driver_startup|object_frame_layout|apu_driver_catalog)$'
+          -E '^(player_terrain_runtime|player_live_runtime|software_frontend_terrain|spc700_ipl_driver_bridge|player_visual_runtime|gnawty_runtime|barrel_scene_runtime|software_frontend_barrel|level_sprite_records|level_sprite_catalog|level_object_spawn|level_software_frontend|object_actor_runtime|object_screen_oam|object_frame_dma|spc700_driver_startup|object_frame_layout|apu_driver_catalog|scene_asset_loading)$'
       - name: Python syntax
         run: python3 -m py_compile tools/*.py
