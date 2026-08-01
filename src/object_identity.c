@@ -19,6 +19,8 @@ static const Dk1ObjectIdentity IDENTITIES[] = {
     {DK1_OBJECT_TYPE_TNT_BARREL, DK1_COMMON_BARREL_CALLBACK_PC,
      DK1_ANIMATION_TNT_BARREL_IDLE, DK1_OBJECT_IDENTITY_BARREL_FAMILY,
      "TNT Barrel"},
+    {DK1_OBJECT_TYPE_GNAWTY, DK1_GNAWTY_CALLBACK_PC,
+     DK1_ANIMATION_GNAWTY_WALK, DK1_OBJECT_IDENTITY_ENEMY, "Gnawty"},
     {DK1_OBJECT_TYPE_SIGN, DK1_SIGN_CALLBACK_PC, 0u,
      DK1_OBJECT_IDENTITY_SCENERY, "Sign"},
 };
@@ -43,4 +45,10 @@ bool dk1_object_identity_is_barrel_family(uint16_t type_id) {
     Dk1ObjectIdentity identity;
     return dk1_object_identity_get(type_id, &identity) &&
            identity.kind == DK1_OBJECT_IDENTITY_BARREL_FAMILY;
+}
+
+bool dk1_object_identity_is_enemy(uint16_t type_id) {
+    Dk1ObjectIdentity identity;
+    return dk1_object_identity_get(type_id, &identity) &&
+           identity.kind == DK1_OBJECT_IDENTITY_ENEMY;
 }
