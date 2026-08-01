@@ -19,7 +19,7 @@ playthrough-complete game with progression, saves and audible gameplay audio.
 | Cartridge identity / HiROM mapping | 100% |
 | Reset-vector and boot-entry analysis | 80% |
 | Routine discovery and symbol map | 99% |
-| Semantic portable C | player, terrain, source Barrel and camera object stream |
+| Semantic portable C | player, terrain, source Barrel, streamed Gnawty and camera object stream |
 | PC rendering / widescreen | 99% infrastructure |
 | Input / saves / menus / compatibility | 91% |
 | Audio loading / driver path | 80% |
@@ -104,10 +104,35 @@ reuse free slots; excess visible records are reported instead of silently lost.
 The whole-cartridge frontend validator includes active record, slot, type and
 callback information in its signature.
 
-Only the normal Barrel currently continues into a complete executable actor,
-collision, animation, OAM/DMA and visible-render path. Other streamed types are
-catalogued, slotted and dispatched, but their individual behavior and rendering
-remain to be connected.
+The normal Barrel and the first active Gnawty now continue into executable actor
+runtimes. Other streamed types are catalogued, slotted and dispatched, but their
+individual behavior and rendering remain to be connected.
+
+## First live enemy: Gnawty
+
+Gnawty type `$004D`, callback `$BF:840C`, and walk/turn/dead animation IDs
+`$015A/$015B/$015C` are connected to a portable live runtime. The camera stream
+selects the source record and original primary slot; the scheduler callback is
+verified every frame before the enemy advances.
+
+The current bridge provides:
+
+```text
+source Gnawty record
+→ stable camera-stream slot
+→ scheduler callback $BF:840C
+→ walk animation script and original frame data
+→ patrol motion with ROM-terrain wall/ledge probes
+→ player overlap, stomp defeat and rebound
+→ defeated-record persistence
+→ OAM and frame-graphics DMA
+→ PC render
+```
+
+Patrol distance, collision boxes, stomp policy and side-contact reporting are
+portable bridge policy for now. Exact callback `$BF:840C`, shared enemy helper
+semantics, player damage/invulnerability and original turn timing remain to be
+translated.
 
 ## Authentic Barrel path
 
@@ -155,10 +180,11 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-There are now **101 automated tests configured**: 100 C tests and one Python
-control-flow test. The new definition-stack and full-catalog regressions pass in
-a focused local build with `-Wall -Wextra -Wpedantic -Werror`. The complete
-repository suite and remote CI were not run in this stage.
+There are now **102 automated tests configured**: 101 C tests and one Python
+control-flow test. The definition-stack and full-catalog regressions passed in
+their focused local stage. The new Gnawty identity, runtime and frontend tests
+are configured, but the complete repository suite and remote CI have not yet
+been rerun after this integration.
 
 ## Validate all scene frontends
 
@@ -166,6 +192,9 @@ repository suite and remote CI were not run in this stage.
 ./build/dk1_frontend_validate \
   "rom/Donkey Kong Country (USA) (Rev 2).sfc"
 ```
+
+The validator now includes live Gnawty source index, motion, animation frame and
+callback state in addition to the level-object and Barrel signatures.
 
 ## Interactive preview
 
@@ -177,9 +206,10 @@ When X11 is available:
   0x16 384 224
 ```
 
-For Jungle Hijinxs, the frontend imports the original object catalog and spawns
-the normal Barrel from its source record. Q/E or mapped L/R accelerates the
-player, Z/B jumps and U/Y picks up or throws.
+For Jungle Hijinxs, the frontend imports the original object catalog, streams
+visible objects, connects the first active Gnawty, and spawns the normal Barrel
+from its source record. Q/E or mapped L/R accelerates the player, Z/B jumps and
+U/Y picks up or throws.
 
 ## Accuracy boundary
 
@@ -190,8 +220,10 @@ user-provided Rev 2 ROM. No ROM or extracted assets are committed.
 
 ## What still blocks a real 100%
 
-- Bind streamed enemy, collectible, sign, effect and completion types to their
-  executable actor state machines, collisions and rendering.
+- Translate the exact Gnawty callback/shared enemy helpers and connect player
+  damage, invulnerability and original interaction responses.
+- Bind remaining streamed enemies, collectibles, signs, effects and completion
+  types to executable actor state machines, collisions and rendering.
 - Connect exact original player pickup, carry and throw states/ownership links.
 - Implement confirmed material-specific collision effects.
 - Initialize the real two-Kong object pair and linked objects from level data.
