@@ -73,6 +73,21 @@ loop and repeatable playthrough.
 - The ROM-backed frontend test sweeps the complete Jungle Hijinxs camera range,
   compares active source records with bound runtimes and requires zero Gnawty
   capacity overflow.
+- Active-runtime counts are refreshed after every enemy step, including the same
+  frame in which an actor finishes its defeated state and is released.
+
+### Portable frontend lifecycle
+
+- `dk1_software_frontend_dispose` releases every dynamically streamed Gnawty and
+  is safe to call repeatedly or before initialization.
+- Disposal clears active/overflow diagnostics so a restarted level begins from a
+  deterministic zero-resource state.
+- The Windows preview disposes streamed actors before replacing the level runtime
+  and again during application shutdown.
+- The X11 preview now zero-initializes its frontend and performs the same cleanup
+  on every exit path.
+- A ROM-independent regression test allocates streamed actors, disposes them,
+  checks every slot and calls disposal a second time.
 
 ### Player damage and invulnerability bridge
 
@@ -114,16 +129,16 @@ callback=BFCF0C
 
 ## Validation
 
-- Configured validation contains 104 tests: 103 C executables plus one Python
+- Configured validation contains 105 tests: 104 C executables plus one Python
   CFG test.
-- The public Linux workflow compiles every target and runs the 86 tests that do
-  not require copyrighted ROM bytes; all 86 passed after the full Gnawty-pool
+- The public Linux workflow compiles every target and runs the 87 tests that do
+  not require copyrighted ROM bytes; all 87 passed after the frontend-lifecycle
   integration.
-- The scheduler special-pass fixture now agrees with the dispatch table: types 1
-  and 2 both carry the special-pass attribute and both callbacks are visited.
+- The scheduler special-pass fixture agrees with the dispatch table: types 1 and
+  2 both carry the special-pass attribute and both callbacks are visited.
 - Python tool syntax validation passes in the same workflow.
 - The Windows x64 workflow configures with MSVC, builds `dk1_win32`, packages it
-  and uploads the preview artifact successfully.
+  and uploads the preview artifact successfully after the restart-cleanup change.
 - The 18 ROM-backed tests remain configured and are intentionally omitted from
   public CI. They run locally when `DK1_TEST_ROM` points to a legal USA Rev 2
   cartridge image.
