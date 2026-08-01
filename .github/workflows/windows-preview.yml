@@ -24,18 +24,23 @@ jobs:
           New-Item -ItemType Directory -Force -Path package | Out-Null
           Copy-Item build/Release/dk1_win32.exe package/DK1-Jungle-Hijinxs-Preview.exe
           @'
-          DK1 Jungle Hijinxs provisional preview
+          DK1 Jungle Hijinxs provisional game-flow preview
 
           1. Run DK1-Jungle-Hijinxs-Preview.exe.
           2. Select your own unheadered Donkey Kong Country (USA) Rev 2 .sfc ROM.
-          3. Controls:
-             - Left/Right or A/D: move
-             - Z: jump
+          3. The preview now follows: intro -> title/menu -> Kongo Jungle map ->
+             Jungle Hijinxs -> completion -> return to map.
+          4. Controls:
+             - Enter, Z or X: skip/confirm/enter level
+             - Left/Right or A/D: move in the level
+             - Z: jump in the level
              - U: pick up / throw barrel
              - Esc: exit
 
           No ROM or copyrighted extracted assets are included.
-          This is a provisional vertical slice, not a complete game build.
+          Intro/title/map presentation is provisional while the original
+          ROM-driven visual packages are being connected.
+          This is a vertical slice, not a complete game build.
           '@ | Set-Content -Encoding UTF8 package/README.txt
           Compress-Archive -Path package/* -DestinationPath DK1-Jungle-Hijinxs-Preview-Windows-x64.zip
 
