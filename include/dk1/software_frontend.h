@@ -18,7 +18,8 @@
 #include "dk1/ppu_compositor.h"
 #include "dk1/scene_runtime.h"
 
-#define DK1_SOFTWARE_FRONTEND_GNAWTY_CAPACITY 4u
+#define DK1_SOFTWARE_FRONTEND_GNAWTY_CAPACITY \
+    DK1_PRIMARY_OBJECT_SLOT_COUNT
 #define DK1_SOFTWARE_FRONTEND_EXTRA_GNAWTIES \
     (DK1_SOFTWARE_FRONTEND_GNAWTY_CAPACITY - 1u)
 
@@ -71,8 +72,8 @@ bool dk1_software_frontend_spawn_barrel(Dk1SoftwareFrontend *,
                                         uint16_t type_id,
                                         uint16_t world_x,
                                         int16_t world_y);
-/* Connects every currently visible source Gnawty up to the bounded portable
- * preview capacity. The camera stream remains authoritative for record and
+/* Connects every currently visible source Gnawty up to the original primary
+ * object-pool capacity. The camera stream remains authoritative for record and
  * original primary-slot lifetime. */
 bool dk1_software_frontend_sync_gnawty(Dk1SoftwareFrontend *);
 bool dk1_software_frontend_step(const Dk1SceneMemory *, uint16_t,
