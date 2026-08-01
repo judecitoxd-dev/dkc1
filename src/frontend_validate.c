@@ -28,6 +28,8 @@ int main(int argc, char **argv) {
     size_t stream_entered = 0u;
     size_t stream_exited = 0u;
     size_t stream_overflow = 0u;
+    size_t gnawty_spawns = 0u;
+    size_t gnawty_live = 0u;
     size_t barrel_records = 0u;
     size_t barrel_spawns = 0u;
 
@@ -119,6 +121,18 @@ int main(int argc, char **argv) {
                                    sizeof(entry->callback_pc), hash);
             }
         }
+        if (source_stats.gnawty_spawned) ++gnawty_spawns;
+        if (frontend.gnawty_ready) {
+            ++gnawty_live;
+            hash = dk1_fnv1a64(&frontend.gnawty_record_index,
+                               sizeof(frontend.gnawty_record_index), hash);
+            hash = dk1_fnv1a64(&frontend.gnawty.motion,
+                               sizeof(frontend.gnawty.motion), hash);
+            hash = dk1_fnv1a64(&frontend.gnawty.animation.frame,
+                               sizeof(frontend.gnawty.animation.frame), hash);
+            hash = dk1_fnv1a64(&frontend.gnawty.callback_pc,
+                               sizeof(frontend.gnawty.callback_pc), hash);
+        }
         if (source_stats.barrel_found) ++barrel_records;
         if (source_stats.barrel_spawned) ++barrel_spawns;
         hash = dk1_fnv1a64(&level, sizeof(level), hash);
@@ -144,12 +158,14 @@ int main(int argc, char **argv) {
            "object_unresolved=%zu object_overflow=%zu "
            "object_streams=%zu stream_catalog=%zu stream_active=%zu "
            "stream_entered=%zu stream_exited=%zu stream_overflow=%zu "
+           "gnawty_spawns=%zu gnawty_live=%zu "
            "barrel_records=%zu barrel_spawns=%zu signature=%016llX\n",
            DK1_SCENE_LEVEL_COUNT, failed, terrain, local,
            object_lists, object_records, object_imports,
            object_unresolved, object_overflow,
            object_streams, stream_catalog, stream_active,
            stream_entered, stream_exited, stream_overflow,
+           gnawty_spawns, gnawty_live,
            barrel_records, barrel_spawns, (unsigned long long)hash);
     free(scene);
     free(pixels);
