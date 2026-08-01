@@ -46,7 +46,7 @@ int main(void) {
     assert(normal == 10357u);
     assert(resolved == 10356u);
     assert(unresolved == 1u);
-    assert(signature == UIN64_C(0xA5702FF2DA67FE40));
+    assert(signature == UINT64_C(0xA5702FF2DA67FE40));
     dk1_rom_free(&owned);
     return 0;
 }
