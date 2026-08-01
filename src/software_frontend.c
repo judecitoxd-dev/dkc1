@@ -121,9 +121,9 @@ bool dk1_software_frontend_spawn_barrel(Dk1SoftwareFrontend *f,
 
 bool dk1_software_frontend_sync_gnawty(Dk1SoftwareFrontend *f) {
     size_t i;
-    if (f == NULL || f->source_rom == NULL)
+    if (f == NULL)
         return false;
-    if (!f->level_objects_ready) {
+    if (f->source_rom == NULL || !f->level_objects_ready) {
         f->gnawty.active = false;
         f->gnawty_ready = false;
         return true;
