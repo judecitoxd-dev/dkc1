@@ -1,0 +1,46 @@
+name: Windows first-level preview
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-windows-preview:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure MSVC Release build
+        run: cmake -S . -B build -A x64
+
+      - name: Build native preview
+        run: cmake --build build --config Release --target dk1_win32 --parallel
+
+      - name: Package preview
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path package | Out-Null
+          Copy-Item build/Release/dk1_win32.exe package/DK1-Jungle-Hijinxs-Preview.exe
+          @'
+          DK1 Jungle Hijinxs provisional preview
+
+          1. Run DK1-Jungle-Hijinxs-Preview.exe.
+          2. Select your own unheadered Donkey Kong Country (USA) Rev 2 .sfc ROM.
+          3. Controls:
+             - Left/Right or A/D: move
+             - Z: jump
+             - U: pick up / throw barrel
+             - Esc: exit
+
+          No ROM or copyrighted extracted assets are included.
+          This is a provisional vertical slice, not a complete game build.
+          '@ | Set-Content -Encoding UTF8 package/README.txt
+          Compress-Archive -Path package/* -DestinationPath DK1-Jungle-Hijinxs-Preview-Windows-x64.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DK1-Jungle-Hijinxs-Preview-Windows-x64
+          path: DK1-Jungle-Hijinxs-Preview-Windows-x64.zip
+          if-no-files-found: error
