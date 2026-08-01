@@ -241,6 +241,7 @@ foreach(test_name IN ITEMS
     snes_graphics
     snes_graphics_depth
     software_frontend
+    software_frontend_dispose
     state_sequence
     terrain
     terrain_contacts
