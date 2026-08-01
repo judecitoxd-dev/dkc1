@@ -7,10 +7,10 @@ completable and the full game is not close to a playable 99%.**
 
 The engineering percentage tracks foundational systems: original level records,
 B5 type definitions, bounded object-pool import, camera-driven slot lifecycle,
-ROM texture/palette loading, scheduler dispatch, streamed Barrel-family
-runtimes, the first streamed enemy family and a portable player-damage bridge.
-It does **not** measure the fraction of levels, enemies, menus, audio or
-progression that can be played.
+ROM texture/palette loading and caching, scheduler dispatch, streamed
+Barrel-family runtimes, the first streamed enemy family and a portable
+player-damage bridge. It does **not** measure the fraction of levels, enemies,
+menus, audio or progression that can be played.
 
 One hundred percent remains reserved for a complete original-compatible game
 loop and repeatable playthrough.
@@ -28,17 +28,36 @@ loop and repeatable playthrough.
   palette patches.
 - Background tiles, object/player frame graphics and palettes are decoded from
   those loaded VRAM/CGRAM images by the PC renderer.
-- Added `Dk1SceneAssetStats` for package count, direct/compressed records, DMA and
+- `Dk1SceneAssetStats` records package count, direct/compressed records, DMA and
   decompressed bytes, palette uploads/colors, nonzero VRAM/CGRAM content and
   deterministic VRAM/palette signatures.
-- `dk1_scene_probe` now renders a scene and reports the complete asset-load
-  accounting.
-- `dk1_scene_validate` totals texture and palette loading across all scene IDs.
-- The X11 preview reports asset-load state and displays it in the window title.
-- Added a ROM-backed Jungle Hijinxs regression that loads the scene twice and
-  verifies deterministic texture, palette and complete scene signatures.
-- Persistent on-disk asset caching remains pending; current loading happens from
-  the ROM into memory whenever the scene runtime is initialized.
+- `dk1_scene_probe` renders a scene and reports the complete asset-load
+  accounting; `dk1_scene_validate` totals loading across all scene IDs.
+
+### Persistent local scene-asset cache
+
+- Split scene initialization into ROM metadata preparation and graphics/palette
+  population so a validated cache can skip repeated decompression.
+- Added the versioned `DK1ASST1` binary format containing the initialized 64 KiB
+  VRAM image, 256-color CGRAM image and portable load accounting.
+- Every cache is keyed by a full-ROM fingerprint and size, level ID and scene
+  option flags; the legal ROM is still loaded and validated on every run.
+- Cache headers verify format version, payload dimensions, scene metadata and
+  separate payload/VRAM/palette signatures.
+- Missing cache files are generated after a normal ROM decode. Stale, truncated,
+  mismatched or corrupted files are rejected and rebuilt from the ROM.
+- Cache writes use a temporary file and rename; inability to write the optional
+  optimization file does not prevent the scene from loading.
+- Cache telemetry is excluded from deterministic scene signatures, so a fresh
+  ROM decode and a verified cache hit must produce identical scene state.
+- Windows and X11 automatically create per-level sidecars beside the ROM and
+  display whether assets came from ROM, a newly saved cache or a cache hit.
+- Generated `*.dk1-assets-*.bin` files are ignored by Git and no ROM or extracted
+  assets are committed.
+- The ROM-backed Jungle Hijinxs regression now requires a first-load cache write,
+  a second-load cache hit and identical complete scene signatures.
+- A ROM-independent regression verifies cache roundtrip, wrong-key rejection and
+  corruption rejection using synthetic VRAM/CGRAM data.
 
 ### Original level sprite-list parser
 
@@ -149,7 +168,8 @@ loop and repeatable playthrough.
 ### Level-aware frontend
 
 - Initializes the bounded import and live camera stream.
-- Loads original scene texture packages and palettes before rendering.
+- Loads or restores original scene texture packages and palettes before
+  rendering.
 - Connects active streamed Gnawties and supported Barrel-family records to
   executable runtimes within the original primary-pool limit.
 - The current actors run through portable collision, original animation,
@@ -175,24 +195,27 @@ callback=BFCF0C
 
 ## Validation
 
-- Configured validation contains 107 tests: 106 C executables plus one Python
+- Configured validation contains 108 tests: 107 C executables plus one Python
   CFG test.
-- The public Linux workflow compiles every target, including the ROM-backed
-  scene asset regression, and runs the 88 tests that do not require copyrighted
-  ROM bytes; all 88 passed after the asset-loading integration.
+- The public Linux workflow compiles every target and runs the 89 tests that do
+  not require copyrighted ROM bytes; all 89 passed after the persistent-cache
+  integration.
 - Python tool syntax validation passes in the same workflow.
 - The Windows x64 workflow configures with MSVC, builds `dk1_win32`, packages it
-  and uploads the preview artifact successfully after the scene asset changes.
-- The 19 ROM-backed tests remain configured and are intentionally omitted from
-  public CI. They run locally when `DK1_TEST_ROM` points to a legal USA Rev 2
-  cartridge image.
-- Remote CI validates compilation and the portable test suite. Exact ROM asset
-  values and signatures still require a locally supplied legal ROM.
+  and uploads the cache-enabled preview artifact successfully.
+- The 19 ROM-backed tests remain configured and intentionally omitted from public
+  CI. They run locally when `DK1_TEST_ROM` points to a legal USA Rev 2 cartridge
+  image.
+- The cache-enabled Windows artifact is `8823681077`, digest
+  `sha256:7dde236d46e3b2d51c900b11a92a2a72658b84779bf2132907326aed900c2c20`.
+- Remote CI validates compilation and the portable suite. Exact ROM-derived
+  graphics values and first-load/cache-hit fidelity still require a locally
+  supplied legal ROM.
 
 ## Required for a real 100%
 
-- Add a persistent local asset cache and translate remaining dynamic graphics
-  upload paths used during transitions and gameplay.
+- Translate remaining dynamic graphics upload paths used during transitions and
+  gameplay; the persistent cache currently covers initialized scene VRAM/CGRAM.
 - Translate the exact Gnawty callback/shared enemy helpers, original hurt states,
   Kong loss/swap and invulnerability timing.
 - Bind the remaining streamed enemy types, collectibles, signs, effects and
