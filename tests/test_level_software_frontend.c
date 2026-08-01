@@ -14,8 +14,10 @@ int main(void) {
     size_t i;
     size_t gnawty_catalog_index = 0u;
     size_t maximum_simultaneous = 0u;
+    size_t maximum_streamed_barrels = 0u;
     bool gnawty_catalogued = false;
     bool multiple_found = false;
+    bool streamed_barrel_found = false;
     if (path == NULL)
         path = "/mnt/data/Donkey Kong Country (USA) (Rev 2).sfc";
     assert(dk1_rom_load_file(path, &owned, &rom));
@@ -53,6 +55,7 @@ int main(void) {
     assert(stats.barrel_spawn.type_id == DK1_OBJECT_TYPE_BARREL);
     assert(stats.barrel_spawn.callback_pc == DK1_COMMON_BARREL_CALLBACK_PC);
     assert(stats.barrel_spawn.scheduler_verified);
+    assert(frontend.barrel_record_index == stats.barrel_spawn.record_index);
     assert(frontend.barrel_ready);
     assert(frontend.barrel.live.object.type_id == DK1_OBJECT_TYPE_BARREL);
     assert(frontend.barrel.live.motion.world_x == 0x0986u);
@@ -121,11 +124,14 @@ int main(void) {
         for (camera_x = 0u; camera_x <= maximum; camera_x += 16u) {
             size_t active_source_count = 0u;
             size_t ready_count = 0u;
+            size_t active_barrel_source_count = 0u;
+            size_t ready_barrel_count = 0u;
             frontend.runtime.view.camera_x = (uint16_t)camera_x;
             assert(dk1_level_object_stream_update(&frontend.level_objects,
                                                    (uint16_t)camera_x,
                                                    384u, 128u, 128u));
             assert(dk1_software_frontend_sync_gnawty(&frontend));
+            assert(dk1_software_frontend_sync_barrels(&frontend));
             for (i = 0u; i < frontend.level_objects.catalog_count; ++i) {
                 const Dk1LevelObjectStreamEntry *entry =
                     &frontend.level_objects.entries[i];
@@ -135,6 +141,13 @@ int main(void) {
                         DK1_LEVEL_OBJECT_STREAM_MAX_ENTRIES &&
                     !frontend.defeated_level_records[entry->record_index])
                     ++active_source_count;
+                if (entry->active &&
+                    dk1_level_barrel_type_supported(entry->type_id) &&
+                    entry->record_index != frontend.barrel_record_index &&
+                    entry->record_index <
+                        DK1_LEVEL_OBJECT_STREAM_MAX_ENTRIES &&
+                    !frontend.defeated_level_records[entry->record_index])
+                    ++active_barrel_source_count;
             }
             if (frontend.gnawty_ready && frontend.gnawty.active)
                 ++ready_count;
@@ -145,13 +158,32 @@ int main(void) {
                     ++ready_count;
                 }
             }
+            for (i = 0u; i < DK1_LEVEL_BARREL_POOL_CAPACITY; ++i) {
+                const Dk1LevelBarrelSlot *slot =
+                    &frontend.streamed_barrels.slots[i];
+                if (slot->ready) {
+                    assert(slot->runtime != NULL);
+                    assert(slot->runtime->live.active);
+                    assert(slot->runtime->live.phase ==
+                           DK1_BARREL_LIVE_IDLE);
+                    ++ready_barrel_count;
+                }
+            }
             assert(ready_count == frontend.gnawty_active_count);
             assert(ready_count == active_source_count);
             assert(frontend.gnawty_capacity_overflow_count == 0u);
+            assert(ready_barrel_count ==
+                   frontend.streamed_barrels.active_count);
+            assert(ready_barrel_count == active_barrel_source_count);
+            assert(frontend.streamed_barrels.overflow_count == 0u);
             if (ready_count > maximum_simultaneous)
                 maximum_simultaneous = ready_count;
             if (ready_count >= 2u)
                 multiple_found = true;
+            if (ready_barrel_count > maximum_streamed_barrels)
+                maximum_streamed_barrels = ready_barrel_count;
+            if (ready_barrel_count != 0u)
+                streamed_barrel_found = true;
         }
     }
     assert(multiple_found);
@@ -160,6 +192,10 @@ int main(void) {
            DK1_SOFTWARE_FRONTEND_GNAWTY_CAPACITY);
     assert(DK1_SOFTWARE_FRONTEND_GNAWTY_CAPACITY ==
            DK1_PRIMARY_OBJECT_SLOT_COUNT);
+    assert(streamed_barrel_found);
+    assert(maximum_streamed_barrels > 0u);
+    assert(maximum_streamed_barrels <=
+           DK1_LEVEL_BARREL_POOL_CAPACITY);
 
     dk1_software_frontend_dispose(&frontend);
     dk1_rom_free(&owned);
