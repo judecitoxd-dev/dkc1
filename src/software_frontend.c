@@ -83,6 +83,7 @@ static bool init_common(const Dk1RomImage *r, const Dk1SceneMemory *s,
     sy = (int16_t)(224 - f->runtime.view.camera_y - h / 2u);
     dk1_player_preview_init(&f->player_preview, sx, sy);
     dk1_player_live_init(&f->player_live);
+    dk1_player_combat_init(&f->player_combat);
     if (r != NULL &&
         dk1_player_terrain_init(&f->player_terrain, r, s->terrain,
             (uint32_t)s->camera.maximum_x + w + 64u) &&
@@ -177,6 +178,7 @@ bool dk1_software_frontend_step(const Dk1SceneMemory *s, uint16_t held,
     uint32_t maxx;
     if (s == NULL || f == NULL) return false;
     dk1_host_input_update(&f->input, held);
+    dk1_player_combat_step(&f->player_combat);
     if (!dk1_scene_runtime_step(s, held, &f->runtime)) return false;
     if (!dk1_dynamic_stream_update(f->runtime.view, 128u, &f->stream, &u))
         return false;
@@ -198,6 +200,10 @@ bool dk1_software_frontend_step(const Dk1SceneMemory *s, uint16_t held,
         if (gnawty_result.stomped &&
             f->gnawty_record_index < DK1_LEVEL_OBJECT_STREAM_MAX_ENTRIES)
             f->defeated_level_records[f->gnawty_record_index] = true;
+        if (gnawty_result.player_hurt)
+            (void)dk1_player_combat_apply_enemy_hit(
+                &f->player_combat, &f->player_preview,
+                f->gnawty.motion.world_x);
         if (!f->gnawty.active)
             f->gnawty_ready = false;
     }
@@ -263,10 +269,14 @@ bool dk1_software_frontend_render(const Dk1RomImage *r,
                             &s->cgram, 0u, 3u, d))
             return false;
     }
-    if (!update_visual(r, s, f)) return false;
-    sv = f->player_visual_ready ? &f->player_vram : &s->vram;
-    if (!dk1_oam_render(&f->oam, f->obsel, sv, &s->cgram, 0u, 3u, d))
-        return false;
+    if (dk1_player_combat_should_render(&f->player_combat)) {
+        if (!update_visual(r, s, f)) return false;
+        sv = f->player_visual_ready ? &f->player_vram : &s->vram;
+        if (!dk1_oam_render(&f->oam, f->obsel, sv, &s->cgram, 0u, 3u, d))
+            return false;
+    } else {
+        f->player_visual_ready = false;
+    }
     if (dk1_ppu_preset_register(&s->ppu, 0x2100u, &disp)) disp &= 15u;
     n = d.width * d.height;
     if (disp < 15u) {
@@ -302,6 +312,7 @@ uint64_t dk1_software_frontend_signature(const Dk1SoftwareFrontend *f) {
     }
     h = dk1_fnv1a64(&f->player_preview, sizeof(f->player_preview), h);
     h = dk1_fnv1a64(&f->player_live, sizeof(f->player_live), h);
+    h = dk1_fnv1a64(&f->player_combat, sizeof(f->player_combat), h);
     h = dk1_fnv1a64(&f->player_terrain.last_attributes,
                     sizeof(f->player_terrain.last_attributes), h);
     h = dk1_fnv1a64(&f->marker_x, sizeof(f->marker_x), h);
