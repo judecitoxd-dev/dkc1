@@ -35,6 +35,11 @@ bool dk1_level_software_frontend_init(const Dk1RomImage *rom,
             frontend->level_objects.active_count;
         output->stream_overflow_count =
             frontend->level_objects.overflow_count;
+        if (!dk1_software_frontend_sync_gnawty(frontend))
+            return false;
+        output->gnawty_spawned = frontend->gnawty_ready;
+        if (frontend->gnawty_ready)
+            output->gnawty_record_index = frontend->gnawty_record_index;
     }
 
     if (!dk1_level_object_spawn_find(
