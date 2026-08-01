@@ -2,15 +2,15 @@
 
 ## Current total: 99%
 
-Ninety-nine percent means the engineering foundation now reaches one authentic
-level object from its original ROM record through type definition, scheduler,
-terrain, animation, OAM/DMA and frontend rendering. It does **not** mean the game
-is ninety-nine percent playable.
+Ninety-nine percent means the engineering foundation now reaches original level
+records, B5 type definitions, bounded object-pool import, camera-driven slot
+lifecycle, scheduler dispatch and one complete visible Barrel runtime. It does
+**not** mean the game is ninety-nine percent playable.
 
 One hundred percent remains reserved for a complete original-compatible game
 loop and playthrough.
 
-## Completed in the 98-to-99% stage
+## Completed in the current 99% stage
 
 ### Original level sprite-list parser
 
@@ -23,25 +23,45 @@ loop and playthrough.
 
 ### Source record to scheduler
 
-- Added `level_object_spawn`.
-- Requires normal command `1` before creating a primary object.
-- Resolves the object type through its B5 definition.
-- Inserts the type into the original scheduler state and verifies the callback
-  and object pass.
+- Added `level_object_spawn` for one selected source record.
+- Requires normal command `1`, resolves its B5 type, inserts it into the original
+  scheduler and verifies callback plus object pass.
 - Jungle Hijinxs record 35 resolves to Barrel `$23` and callback `$BF:CF0C`.
+
+### Complete bounded object-list import
+
+- Added `level_object_import`.
+- Walks the complete entrance list in original order.
+- Resolves every supported normal type and imports up to the original 25 primary
+  slots in one deterministic scheduler snapshot.
+- Preserves each record, definition, index, slot, expected callback and observed
+  callback/pass.
+- Explicitly counts non-normal, unresolved, unsupported and overflow records.
+
+### Camera-driven lifecycle
+
+- Added `level_object_stream`.
+- Builds a catalog of every supported normal record in the entrance.
+- Uses the current camera, viewport and margins to activate visible records.
+- Retains visible records in stable primary slots and preserves their scheduler
+  state.
+- Removes records that leave the envelope and reuses their slots in original
+  list order.
+- Enforces the 25-slot primary pool and reports visible overflow.
+- Runs and verifies the scheduler callback for every active record each frame.
+- Connected the stream to `Dk1SoftwareFrontend`, so it advances whenever the
+  camera advances.
 
 ### Level-aware frontend
 
-- Added `level_software_frontend`.
-- Initializes the regular ROM-aware frontend and imports the first normal Barrel
-  record from the requested entrance.
-- Preserves source address, record index, coordinates, definition, slot, pass and
-  callback in validation stats.
-- Updated X11 and whole-cartridge frontend validation to use the level-aware
-  initializer.
-- Entrances without a normal Barrel still initialize successfully.
+- Initializes the complete bounded import and live camera stream before spawning
+  the first normal Barrel into the executable scene runtime.
+- Preserves import and stream counts in validation stats.
+- Whole-cartridge validation now hashes active record indices, slots, types and
+  callbacks and reports catalog/enter/exit/overflow totals.
+- Entrances without a resolvable list or normal Barrel still initialize.
 
-## Deterministic Jungle Hijinxs result
+## Deterministic Jungle Hijinxs source result
 
 ```text
 entrance=0016
@@ -61,18 +81,19 @@ callback=BFCF0C
 
 ## Validation
 
-- Added `level_sprite_records`, `level_object_spawn` and
-  `level_software_frontend` tests.
-- Configured validation increases from 94 to 97 tests: 96 C plus one Python.
-- Parser and scheduler tests pass locally with strict warnings and ASan/UBSan.
-- The level-aware wrapper passes a focused source-selection/integration harness.
-- The full repository suite and remote CI were not run in this stage.
+- Added `level_object_import` and `level_object_stream` tests.
+- Configured validation increases from 97 to 99 tests: 98 C plus one Python.
+- The new synthetic import and stream harnesses compile and execute in a focused
+  build with `-Wall -Wextra -Wpedantic -Werror`.
+- The complete repository suite and remote CI were not run in this stage.
 
 ## Required for 100%
 
-- Full object-list import and lifecycle.
+- Bind the streamed enemy, collectible, sign, effect and level-completion types
+  to executable actor state machines, collisions and visible rendering.
 - Exact player carry/throw states and object ownership links.
-- Enemies, collectibles, effects and level completion.
+- Material-specific collision behavior.
+- Real two-Kong and linked-object initialization.
 - Menus, progression and SRAM.
 - SPC command execution, DSP/BRR and audible music/effects.
 - A complete, repeatable playthrough with emulator-reference comparisons.
