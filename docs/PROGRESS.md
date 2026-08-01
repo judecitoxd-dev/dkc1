@@ -1,45 +1,78 @@
 # Progress accounting
 
-## Current total: 98% — held intentionally
+## Current total: 99%
 
-This stage again does **not** increase the headline percentage. The barrel is
-now visible and controllable through an explicit frontend debug spawn, but it
-is not yet created from original level object records or connected to the full
-player pickup/throw graph.
+Ninety-nine percent means the engineering foundation now reaches one authentic
+level object from its original ROM record through type definition, scheduler,
+terrain, animation, OAM/DMA and frontend rendering. It does **not** mean the game
+is ninety-nine percent playable.
 
-## Completed while remaining at 98%
+One hundred percent remains reserved for a complete original-compatible game
+loop and playthrough.
 
-### Authentic barrel scene path
+## Completed in the 98-to-99% stage
 
-- Added `barrel_scene_runtime` above `barrel_live_runtime`.
-- Added ROM-terrain adapters for floor crossings and three-point wall probes.
-- Selected original idle/held/thrown animation IDs by barrel type.
-- Advanced those scripts through the translated animation interpreter.
-- Built their original frame layouts through OAM and frame DMA.
-- Confirmed normal Barrel frames `$1BD4`, `$1C18`, `$1BF8`.
-- Confirmed 7/6/6 pieces and 608/576/576 DMA bytes.
+### Original level sprite-list parser
 
-### Software frontend bridge
+- Located the loader at `$FD:FDE9` and pointer table `$BD:8000`.
+- Added the normal eight-byte record format: command, world X, world Y and B5
+  definition address.
+- Added zero-command termination and a deterministic whole-list signature.
+- Added the B5 field/value definition interpreter, redirect following and type
+  recovery from `$0D45`.
 
-- Added `dk1_software_frontend_spawn_barrel`.
-- Stored the ROM reference only for the lifetime of the frontend.
-- Used Y as a debug pickup/throw action without changing B jump input.
-- Stepped live barrel physics and ROM terrain alongside the player.
-- Rendered the barrel with a separate OAM/VRAM pass before the player.
-- Kept ROM-less frontend tests and fallback behavior unchanged.
+### Source record to scheduler
+
+- Added `level_object_spawn`.
+- Requires normal command `1` before creating a primary object.
+- Resolves the object type through its B5 definition.
+- Inserts the type into the original scheduler state and verifies the callback
+  and object pass.
+- Jungle Hijinxs record 35 resolves to Barrel `$23` and callback `$BF:CF0C`.
+
+### Level-aware frontend
+
+- Added `level_software_frontend`.
+- Initializes the regular ROM-aware frontend and imports the first normal Barrel
+  record from the requested entrance.
+- Preserves source address, record index, coordinates, definition, slot, pass and
+  callback in validation stats.
+- Updated X11 and whole-cartridge frontend validation to use the level-aware
+  initializer.
+- Entrances without a normal Barrel still initialize successfully.
+
+## Deterministic Jungle Hijinxs result
+
+```text
+entrance=0016
+list=BD95DC
+records=66
+signature=BE8955E9C89E92DD
+record=35
+record_pc=BD96F4
+x=0986
+y=005F
+definition=92A9
+type=0023
+slot=1
+pass=primary-normal
+callback=BFCF0C
+```
 
 ## Validation
 
-- Added `barrel_scene_runtime` and `software_frontend_barrel` tests.
-- Configured validation increases from 92 to 94 tests: 93 C plus one Python.
-- Focused C builds pass with strict warnings; the Rev 2 ROM frame records were
-  independently checked for the expected pieces and DMA byte counts.
-- The complete repository suite and remote CI were not run in this stage.
+- Added `level_sprite_records`, `level_object_spawn` and
+  `level_software_frontend` tests.
+- Configured validation increases from 94 to 97 tests: 96 C plus one Python.
+- Parser and scheduler tests pass locally with strict warnings and ASan/UBSan.
+- The level-aware wrapper passes a focused source-selection/integration harness.
+- The full repository suite and remote CI were not run in this stage.
 
-## Next measurable targets
+## Required for 100%
 
-- Parse and spawn a common Barrel from an original level object record.
-- Connect original player pickup, carry and throw states rather than the Y debug bridge.
-- Spawn authentic break/explosion effects and route sound `$14` to the audio path.
-- Add enemy collision and a level-completion loop.
-- Continue SPC command/timer execution and DSP output.
+- Full object-list import and lifecycle.
+- Exact player carry/throw states and object ownership links.
+- Enemies, collectibles, effects and level completion.
+- Menus, progression and SRAM.
+- SPC command execution, DSP/BRR and audible music/effects.
+- A complete, repeatable playthrough with emulator-reference comparisons.
