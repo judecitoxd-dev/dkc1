@@ -13,6 +13,7 @@ int main(void) {
     Dk1GnawtyStepResult gnawty_result;
     size_t i;
     size_t gnawty_catalog_index = 0u;
+    size_t maximum_simultaneous = 0u;
     bool gnawty_catalogued = false;
     bool multiple_found = false;
     if (path == NULL)
@@ -118,13 +119,24 @@ int main(void) {
         uint32_t camera_x;
         uint32_t maximum = (uint32_t)scene.camera.maximum_x + 384u;
         for (camera_x = 0u; camera_x <= maximum; camera_x += 16u) {
+            size_t active_source_count = 0u;
             size_t ready_count = 0u;
             frontend.runtime.view.camera_x = (uint16_t)camera_x;
             assert(dk1_level_object_stream_update(&frontend.level_objects,
                                                    (uint16_t)camera_x,
                                                    384u, 128u, 128u));
             assert(dk1_software_frontend_sync_gnawty(&frontend));
-            if (frontend.gnawty_ready)
+            for (i = 0u; i < frontend.level_objects.catalog_count; ++i) {
+                const Dk1LevelObjectStreamEntry *entry =
+                    &frontend.level_objects.entries[i];
+                if (entry->active &&
+                    entry->type_id == DK1_OBJECT_TYPE_GNAWTY &&
+                    entry->record_index <
+                        DK1_LEVEL_OBJECT_STREAM_MAX_ENTRIES &&
+                    !frontend.defeated_level_records[entry->record_index])
+                    ++active_source_count;
+            }
+            if (frontend.gnawty_ready && frontend.gnawty.active)
                 ++ready_count;
             for (i = 0u; i < DK1_SOFTWARE_FRONTEND_EXTRA_GNAWTIES; ++i) {
                 if (frontend.additional_gnawties[i].ready) {
@@ -134,16 +146,20 @@ int main(void) {
                 }
             }
             assert(ready_count == frontend.gnawty_active_count);
-            if (ready_count >= 2u) {
+            assert(ready_count == active_source_count);
+            assert(frontend.gnawty_capacity_overflow_count == 0u);
+            if (ready_count > maximum_simultaneous)
+                maximum_simultaneous = ready_count;
+            if (ready_count >= 2u)
                 multiple_found = true;
-                break;
-            }
         }
     }
     assert(multiple_found);
-    assert(frontend.gnawty_active_count >= 2u);
-    assert(frontend.gnawty_active_count <=
+    assert(maximum_simultaneous >= 2u);
+    assert(maximum_simultaneous <=
            DK1_SOFTWARE_FRONTEND_GNAWTY_CAPACITY);
+    assert(DK1_SOFTWARE_FRONTEND_GNAWTY_CAPACITY ==
+           DK1_PRIMARY_OBJECT_SLOT_COUNT);
 
     dk1_software_frontend_dispose(&frontend);
     dk1_rom_free(&owned);
