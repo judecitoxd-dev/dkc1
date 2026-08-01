@@ -6,6 +6,7 @@
 #include "dk1/barrel_scene_runtime.h"
 #include "dk1/dynamic_stream.h"
 #include "dk1/host_input.h"
+#include "dk1/level_object_stream.h"
 #include "dk1/oam_image.h"
 #include "dk1/player_live_runtime.h"
 #include "dk1/player_preview_runtime.h"
@@ -25,6 +26,7 @@ typedef struct Dk1SoftwareFrontend {
     Dk1PlayerTerrainRuntime player_terrain;
     Dk1BarrelSceneRuntime barrel;
     Dk1DynamicStreamState stream;
+    Dk1LevelObjectStream level_objects;
     const Dk1RomImage *source_rom;
     uint8_t obsel;
     int16_t marker_x, marker_y;
@@ -32,6 +34,7 @@ typedef struct Dk1SoftwareFrontend {
     uint8_t marker_palette;
     uint16_t player_frame, player_tile_base, player_vertical_origin;
     bool player_visual_ready, player_terrain_ready, barrel_ready;
+    bool level_objects_ready;
 } Dk1SoftwareFrontend;
 
 bool dk1_software_frontend_init(const Dk1SceneMemory *, uint16_t, uint16_t,
