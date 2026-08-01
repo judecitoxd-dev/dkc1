@@ -155,6 +155,7 @@ static bool init_common(const Dk1RomImage *r, const Dk1SceneMemory *s,
     if (s == NULL || f == NULL || w == 0u || h == 0u) return false;
     memset(f, 0, sizeof(*f));
     f->source_rom = r;
+    f->barrel_record_index = SIZE_MAX;
     f->runtime.view.width = w;
     f->runtime.view.height = h;
     f->marker_x = (int16_t)(w / 2u);
@@ -200,8 +201,11 @@ void dk1_software_frontend_dispose(Dk1SoftwareFrontend *f) {
     size_t i;
     if (f == NULL)
         return;
+    dk1_level_barrel_pool_dispose(&f->streamed_barrels);
     for (i = 0u; i < DK1_SOFTWARE_FRONTEND_EXTRA_GNAWTIES; ++i)
         release_additional_gnawty(&f->additional_gnawties[i]);
+    f->barrel.live.active = false;
+    f->barrel_ready = false;
     f->gnawty.active = false;
     f->gnawty_ready = false;
     f->gnawty_active_count = 0u;
@@ -219,6 +223,18 @@ bool dk1_software_frontend_spawn_barrel(Dk1SoftwareFrontend *f,
     return f->barrel_ready;
 }
 
+bool dk1_software_frontend_sync_barrels(Dk1SoftwareFrontend *f) {
+    if (f == NULL)
+        return false;
+    if (f->source_rom == NULL || !f->level_objects_ready) {
+        dk1_level_barrel_pool_dispose(&f->streamed_barrels);
+        return true;
+    }
+    return dk1_level_barrel_pool_sync(
+        &f->streamed_barrels, f->source_rom, &f->level_objects,
+        f->defeated_level_records, f->barrel_record_index);
+}
+
 bool dk1_software_frontend_sync_gnawty(Dk1SoftwareFrontend *f) {
     size_t i;
     if (f == NULL)
@@ -227,7 +243,11 @@ bool dk1_software_frontend_sync_gnawty(Dk1SoftwareFrontend *f) {
     f->gnawty_active_count = 0u;
     f->gnawty_capacity_overflow_count = 0u;
     if (f->source_rom == NULL || !f->level_objects_ready) {
-        dk1_software_frontend_dispose(f);
+        size_t j;
+        for (j = 0u; j < DK1_SOFTWARE_FRONTEND_EXTRA_GNAWTIES; ++j)
+            release_additional_gnawty(&f->additional_gnawties[j]);
+        f->gnawty.active = false;
+        f->gnawty_ready = false;
         return true;
     }
 
@@ -319,10 +339,16 @@ bool dk1_software_frontend_step(const Dk1SceneMemory *s, uint16_t held,
                                 Dk1SoftwareFrontend *f) {
     Dk1DynamicStreamUpdate u;
     Dk1BarrelLiveResult barrel_result;
+    Dk1LevelBarrelPoolStepResult streamed_barrel_result;
     Dk1GnawtyStepResult gnawty_result;
+    uint16_t embedded_barrel_pressed;
+    uint16_t streamed_barrel_pressed;
     uint32_t maxx;
     size_t i;
+    bool streamed_barrel_held;
     if (s == NULL || f == NULL) return false;
+    memset(&barrel_result, 0, sizeof(barrel_result));
+    memset(&streamed_barrel_result, 0, sizeof(streamed_barrel_result));
     dk1_host_input_update(&f->input, held);
     dk1_player_combat_step(&f->player_combat);
     if (!dk1_scene_runtime_step(s, held, &f->runtime)) return false;
@@ -333,7 +359,8 @@ bool dk1_software_frontend_step(const Dk1SceneMemory *s, uint16_t held,
             &f->level_objects, f->runtime.view.camera_x,
             f->runtime.view.width, 128u, 128u))
         return false;
-    if (!dk1_software_frontend_sync_gnawty(f))
+    if (!dk1_software_frontend_sync_gnawty(f) ||
+        !dk1_software_frontend_sync_barrels(f))
         return false;
     dk1_player_live_step(&f->player_live, &f->player_preview,
         f->player_terrain_ready ? &f->player_terrain : NULL,
@@ -358,13 +385,39 @@ bool dk1_software_frontend_step(const Dk1SceneMemory *s, uint16_t held,
     }
     refresh_gnawty_active_count(f);
 
+    streamed_barrel_held =
+        dk1_level_barrel_pool_has_held(&f->streamed_barrels);
+    embedded_barrel_pressed = streamed_barrel_held ? 0u : f->input.pressed;
     if (f->barrel_ready && f->barrel.live.active) {
         if (!dk1_barrel_scene_step(&f->barrel, f->source_rom,
                 f->player_terrain_ready ? &f->player_terrain : NULL,
-                &f->player_preview, f->input.pressed, &barrel_result))
+                &f->player_preview, embedded_barrel_pressed, &barrel_result))
             return false;
-        if (!f->barrel.live.active) f->barrel_ready = false;
+        if (!f->barrel.live.active) {
+            if (f->barrel_record_index <
+                DK1_LEVEL_OBJECT_STREAM_MAX_ENTRIES)
+                f->defeated_level_records[f->barrel_record_index] = true;
+            f->barrel_ready = false;
+        }
     }
+
+    if (streamed_barrel_held) {
+        streamed_barrel_pressed = f->input.pressed;
+    } else if ((f->barrel_ready && f->barrel.live.active &&
+                f->barrel.live.phase == DK1_BARREL_LIVE_HELD) ||
+               barrel_result.picked_up || barrel_result.thrown) {
+        streamed_barrel_pressed = 0u;
+    } else {
+        streamed_barrel_pressed = f->input.pressed;
+    }
+    if (f->source_rom != NULL && f->level_objects_ready &&
+        !dk1_level_barrel_pool_step(
+            &f->streamed_barrels, f->source_rom,
+            f->player_terrain_ready ? &f->player_terrain : NULL,
+            &f->player_preview, streamed_barrel_pressed,
+            f->defeated_level_records, &streamed_barrel_result))
+        return false;
+
     maxx = (uint32_t)s->camera.maximum_x + f->runtime.view.width + 32u;
     if (f->player_preview.motion.world_x > maxx)
         f->player_preview.motion.world_x = (uint16_t)maxx;
@@ -424,6 +477,12 @@ bool dk1_software_frontend_render(const Dk1RomImage *r,
                             &s->cgram, 0u, 3u, d))
             return false;
     }
+    if (r != NULL &&
+        !dk1_level_barrel_pool_render(
+            &f->streamed_barrels, r, s,
+            f->runtime.view.camera_x, f->runtime.view.camera_y,
+            f->player_vertical_origin, f->obsel, d))
+        return false;
     if (f->gnawty_ready && f->gnawty.active &&
         !render_gnawty(r, s, f, &f->gnawty, d))
         return false;
@@ -458,6 +517,7 @@ bool dk1_software_frontend_render(const Dk1RomImage *r,
 
 uint64_t dk1_software_frontend_signature(const Dk1SoftwareFrontend *f) {
     uint64_t h = 0;
+    uint64_t barrel_pool_signature;
     size_t i;
     if (f == NULL) return 0u;
     h = dk1_fnv1a64(&f->runtime, sizeof(f->runtime), h);
@@ -497,6 +557,8 @@ uint64_t dk1_software_frontend_signature(const Dk1SoftwareFrontend *f) {
     h = dk1_fnv1a64(&f->marker_y, sizeof(f->marker_y), h);
     h = dk1_fnv1a64(&f->player_frame, sizeof(f->player_frame), h);
     h = dk1_fnv1a64(&f->player_visual, sizeof(f->player_visual), h);
+    h = dk1_fnv1a64(&f->barrel_record_index,
+                    sizeof(f->barrel_record_index), h);
     h = dk1_fnv1a64(&f->barrel_ready, sizeof(f->barrel_ready), h);
     if (f->barrel_ready) {
         h = dk1_fnv1a64(&f->barrel.live, sizeof(f->barrel.live), h);
@@ -504,5 +566,9 @@ uint64_t dk1_software_frontend_signature(const Dk1SoftwareFrontend *f) {
                         sizeof(f->barrel.selected_animation), h);
         h = dk1_fnv1a64(&f->barrel.visual, sizeof(f->barrel.visual), h);
     }
+    barrel_pool_signature =
+        dk1_level_barrel_pool_signature(&f->streamed_barrels);
+    h = dk1_fnv1a64(&barrel_pool_signature,
+                    sizeof(barrel_pool_signature), h);
     return dk1_fnv1a64(&f->oam, sizeof(f->oam), h);
 }
