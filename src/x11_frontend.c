@@ -76,6 +76,20 @@ int main(int argc, char **argv) {
                                           &frontend, &source_stats))
         goto cleanup;
 
+    fprintf(stderr,
+            "ROM assets: textures=%s palettes=%s packages=%zu records=%zu "
+            "dma=%zu decompressed=%zu vram_nonzero=%zu colors=%zu "
+            "vram_sig=%016llX palette_sig=%016llX\n",
+            scene->assets.textures_loaded ? "loaded" : "empty",
+            scene->assets.palettes_loaded ? "loaded" : "empty",
+            scene->assets.package_count,
+            scene->assets.package_records,
+            scene->assets.dma_bytes,
+            scene->assets.decompressed_bytes,
+            scene->assets.nonzero_vram_bytes,
+            scene->assets.nonzero_palette_colors,
+            (unsigned long long)scene->assets.vram_signature,
+            (unsigned long long)scene->assets.palette_signature);
     if (source_stats.object_stream_initialized) {
         fprintf(stderr,
                 "level objects: catalog=%zu active=%zu overflow=%zu "
@@ -105,7 +119,10 @@ int main(int argc, char **argv) {
     window = XCreateSimpleWindow(display, DefaultRootWindow(display),
                                  0, 0, (unsigned)width, (unsigned)height,
                                  0, 0, 0);
-    XStoreName(display, window, "DK1 clean-room scene preview");
+    XStoreName(display, window,
+               scene->assets.textures_loaded && scene->assets.palettes_loaded ?
+               "DK1 preview - ROM textures and palettes loaded" :
+               "DK1 preview - ROM asset load incomplete");
     XSelectInput(display, window,
                  ExposureMask | KeyPressMask | KeyReleaseMask |
                  StructureNotifyMask);
