@@ -148,6 +148,8 @@ foreach(test_name IN ITEMS
     barrel_scene_runtime
     software_frontend_barrel
     level_sprite_records
+    level_sprite_definition_stack
+    level_sprite_catalog
     level_object_spawn
     level_object_import
     level_object_stream

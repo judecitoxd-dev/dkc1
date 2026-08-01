@@ -2,7 +2,7 @@
 
 ## Current total: 99%
 
-Ninety-nine percent means the engineering foundation now reaches original level
+Ninety-nine percent means the engineering foundation reaches original level
 records, B5 type definitions, bounded object-pool import, camera-driven slot
 lifecycle, scheduler dispatch and one complete visible Barrel runtime. It does
 **not** mean the game is ninety-nine percent playable.
@@ -14,52 +14,47 @@ loop and playthrough.
 
 ### Original level sprite-list parser
 
-- Located the loader at `$FD:FDE9` and pointer table `$BD:8000`.
+- Located the loader at `$BD:FDD9` and pointer table `$BD:8000`.
 - Added the normal eight-byte record format: command, world X, world Y and B5
   definition address.
-- Added zero-command termination and a deterministic whole-list signature.
-- Added the B5 field/value definition interpreter, redirect following and type
-  recovery from `$0D45`.
+- Added zero-command termination and deterministic signatures.
+- Recovers the scheduler type from field `$0D45`.
+- Corrected `$8200` from terminal redirect semantics to nested-call semantics:
+  the callee runs and parsing resumes in the caller.
+- Added a call-stack cycle guard and retained an explicit boundary at unsupported
+  variable-size B5 commands.
+- Full Rev 2 catalog validation now resolves 10,356 of 10,357 normal records
+  across 230 IDs with signature `A5702FF2DA67FE40`.
 
 ### Source record to scheduler
 
-- Added `level_object_spawn` for one selected source record.
-- Requires normal command `1`, resolves its B5 type, inserts it into the original
-  scheduler and verifies callback plus object pass.
+- `level_object_spawn` selects a source record, resolves its B5 type, inserts it
+  into the original scheduler and verifies callback plus object pass.
 - Jungle Hijinxs record 35 resolves to Barrel `$23` and callback `$BF:CF0C`.
 
 ### Complete bounded object-list import
 
-- Added `level_object_import`.
-- Walks the complete entrance list in original order.
-- Resolves every supported normal type and imports up to the original 25 primary
+- `level_object_import` walks entrance records in original order.
+- Resolves supported normal types and imports up to the original 25 primary
   slots in one deterministic scheduler snapshot.
-- Preserves each record, definition, index, slot, expected callback and observed
-  callback/pass.
+- Preserves record, definition, index, slot and callback/pass metadata.
 - Explicitly counts non-normal, unresolved, unsupported and overflow records.
 
 ### Camera-driven lifecycle
 
-- Added `level_object_stream`.
-- Builds a catalog of every supported normal record in the entrance.
-- Uses the current camera, viewport and margins to activate visible records.
-- Retains visible records in stable primary slots and preserves their scheduler
-  state.
-- Removes records that leave the envelope and reuses their slots in original
-  list order.
-- Enforces the 25-slot primary pool and reports visible overflow.
-- Runs and verifies the scheduler callback for every active record each frame.
-- Connected the stream to `Dk1SoftwareFrontend`, so it advances whenever the
-  camera advances.
+- `level_object_stream` catalogs supported normal records.
+- Uses camera, viewport and margins to activate visible records.
+- Retains stable slots, removes exited records and reuses free slots in list
+  order.
+- Enforces the 25-slot primary pool and verifies every active scheduler callback.
+- The stream advances with `Dk1SoftwareFrontend` as the camera advances.
 
-### Level-aware frontend
+### Level-aware frontend and Barrel
 
-- Initializes the complete bounded import and live camera stream before spawning
-  the first normal Barrel into the executable scene runtime.
-- Preserves import and stream counts in validation stats.
-- Whole-cartridge validation now hashes active record indices, slots, types and
-  callbacks and reports catalog/enter/exit/overflow totals.
-- Entrances without a resolvable list or normal Barrel still initialize.
+- Initializes the bounded import and live camera stream.
+- Spawns the first normal Barrel source record into the executable scene runtime.
+- Continues through pickup/hold/throw, fixed-point motion, ROM terrain, original
+  animation, frame layout, OAM/DMA and PC rendering.
 
 ## Deterministic Jungle Hijinxs source result
 
@@ -81,19 +76,18 @@ callback=BFCF0C
 
 ## Validation
 
-- Added `level_object_import` and `level_object_stream` tests.
-- Configured validation increases from 97 to 99 tests: 98 C plus one Python.
-- The new synthetic import and stream harnesses compile and execute in a focused
-  build with `-Wall -Wextra -Wpedantic -Werror`.
+- Added `level_sprite_definition_stack` and `level_sprite_catalog` tests.
+- Configured validation increases from 99 to 101 tests: 100 C plus one Python.
+- Both new tests pass locally with `-Wall -Wextra -Wpedantic -Werror`.
 - The complete repository suite and remote CI were not run in this stage.
 
 ## Required for 100%
 
-- Bind the streamed enemy, collectible, sign, effect and level-completion types
-  to executable actor state machines, collisions and visible rendering.
+- Bind streamed enemy, collectible, sign, effect and level-completion types to
+  executable actor state machines, collisions and visible rendering.
 - Exact player carry/throw states and object ownership links.
 - Material-specific collision behavior.
 - Real two-Kong and linked-object initialization.
 - Menus, progression and SRAM.
 - SPC command execution, DSP/BRR and audible music/effects.
-- A complete, repeatable playthrough with emulator-reference comparisons.
+- A complete repeatable playthrough with emulator-reference comparisons.

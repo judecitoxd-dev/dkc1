@@ -30,18 +30,25 @@ static bool assignment_set(Dk1LevelSpriteDefinition *definition,
     return true;
 }
 
-static bool definition_follow(const Dk1RomImage *rom, uint16_t address,
-                              uint16_t seen[DK1_LEVEL_SPRITE_MAX_REDIRECTS + 1u],
-                              size_t depth,
-                              Dk1LevelSpriteDefinition *definition) {
+/* $B5:8052 treats command $8200 as a subroutine call: the nested definition
+ * runs and control then resumes at the next word pair in the caller.  Keep a
+ * call-stack-only cycle guard so the same shared definition may be called by
+ * independent branches.  Unsupported commands bound the current script, but
+ * a caller still resumes after a nested script returns. */
+static bool definition_run(const Dk1RomImage *rom, uint16_t address,
+                           uint16_t stack[DK1_LEVEL_SPRITE_MAX_REDIRECTS + 1u],
+                           size_t depth,
+                           Dk1LevelSpriteDefinition *definition) {
     uint32_t pc;
     size_t i;
     if (depth > DK1_LEVEL_SPRITE_MAX_REDIRECTS) return false;
-    for (i = 0u; i < depth; ++i) if (seen[i] == address) return false;
-    seen[depth] = address;
+    for (i = 0u; i < depth; ++i) if (stack[i] == address) return false;
+    stack[depth] = address;
     pc = bank_pc(DK1_LEVEL_SPRITE_DEFINITION_BANK, address);
-    for (i = 0u; i < DK1_LEVEL_SPRITE_MAX_ASSIGNMENTS; ++i) {
+
+    for (i = 0u; i < DK1_LEVEL_SPRITE_MAX_ASSIGNMENTS * 4u; ++i) {
         uint16_t word, argument;
+        uint8_t command;
         if (!dk1_rom_read_u16(rom, pc, &word) ||
             !dk1_rom_read_u16(rom, pc + 2u, &argument)) return false;
         if ((word & 0x8000u) == 0u) {
@@ -49,16 +56,26 @@ static bool definition_follow(const Dk1RomImage *rom, uint16_t address,
             pc += 4u;
             continue;
         }
+
+        command = (uint8_t)(((word >> 8u) - 0x80u) & 0xFFu);
         definition->final_address = (uint16_t)pc;
         definition->terminal_word = word;
         definition->terminal_argument = argument;
-        definition->terminal_command =
-            (uint8_t)(((word >> 8u) - 0x80u) & 0xFFu);
-        if (definition->terminal_command == 2u) {
+        definition->terminal_command = command;
+
+        if (command == 0u) return true; /* $8000: return */
+        if (command == 2u) {            /* $8200: call definition */
+            if (definition->redirect_count == UINT8_MAX) return false;
             ++definition->redirect_count;
-            return definition_follow(rom, argument, seen, depth + 1u,
-                                     definition);
+            if (!definition_run(rom, argument, stack, depth + 1u, definition))
+                return false;
+            pc += 4u;
+            continue;
         }
+
+        /* Other command handlers can mutate runtime state and use varying
+         * record sizes.  Stop this script at the explicit accuracy boundary;
+         * when this is a callee, its caller still resumes after $8200. */
         return true;
     }
     return false;
@@ -101,12 +118,12 @@ bool dk1_level_sprite_list_read(const Dk1RomImage *rom, uint16_t entrance_id,
 bool dk1_level_sprite_definition_read(const Dk1RomImage *rom,
                                       uint16_t definition_address,
                                       Dk1LevelSpriteDefinition *definition) {
-    uint16_t seen[DK1_LEVEL_SPRITE_MAX_REDIRECTS + 1u] = {0};
+    uint16_t stack[DK1_LEVEL_SPRITE_MAX_REDIRECTS + 1u] = {0};
     if (rom == NULL || definition == NULL || definition_address < 0x8000u)
         return false;
     memset(definition, 0, sizeof(*definition));
     definition->source_address = definition_address;
-    return definition_follow(rom, definition_address, seen, 0u, definition);
+    return definition_run(rom, definition_address, stack, 0u, definition);
 }
 
 bool dk1_level_sprite_record_type(const Dk1RomImage *rom,

@@ -35,9 +35,9 @@ other material-specific effects remain incomplete.
 
 ## Source-driven level object import
 
-The original level-object loader at `$FD:FDE9` has now been translated far
-enough to read the normal eight-byte sprite records selected by the pointer
-table at `$BD:8000`:
+The original level-object loader at `$BD:FDD9` (mirrored in bank `$FD`) is
+translated far enough to read the normal eight-byte sprite records selected by
+the pointer table at `$BD:8000`:
 
 ```text
 word 0: loader command
@@ -46,9 +46,24 @@ word 2: world Y
 word 3: B5 object-definition address
 ```
 
-The B5 definition reader follows redirects, applies field/value assignments and
-recovers the normal-object type from field `$0D45`. Normal records use command
-`1`; a zero command terminates the list.
+Normal records use command `1`; a zero command terminates the list. The B5
+definition reader applies field/value assignments and recovers the normal-object
+type from field `$0D45`.
+
+Command `$8200` is now modeled as the call used by `$B5:8052`, not as a terminal
+redirect: the nested definition runs, returns, and parsing resumes at the next
+word pair in the caller. A call-stack cycle guard prevents recursive loops while
+allowing shared definitions to be called independently. Unsupported B5 commands
+remain an explicit boundary because their handlers use different record sizes.
+
+A full Rev 2 ROM catalog regression across all 230 entrance IDs now reports:
+
+```text
+normal records:      10357
+resolved type IDs:   10356
+unresolved:              1
+catalog signature:  A5702FF2DA67FE40
+```
 
 For Jungle Hijinxs entrance `$0016`, deterministic validation reads:
 
@@ -66,7 +81,7 @@ scheduler callback: $BF:CF0C
 
 `level_object_spawn` places one selected type in the original primary object
 pool and runs the translated scheduler to verify its callback and pass.
-`level_object_import` now resolves the complete normal-record list in original
+`level_object_import` resolves the complete normal-record list in original
 order, imports the first 25 supported types into the real primary-slot window,
 and explicitly counts unresolved, unsupported and overflow records.
 
@@ -86,18 +101,15 @@ camera envelope
 
 Retained objects keep their slot and scheduler state. Newly visible records
 reuse free slots; excess visible records are reported instead of silently lost.
-The whole-cartridge frontend validator records catalog, active, enter, exit and
-overflow totals and includes active slot/type/callback data in its signature.
+The whole-cartridge frontend validator includes active record, slot, type and
+callback information in its signature.
 
-This is the original object-list and scheduler lifecycle foundation. Only the
-normal Barrel currently continues into a complete executable actor, collision,
-animation, OAM/DMA and visible-render path. Other streamed types are catalogued,
-slotted and dispatched, but their individual behavior/render runtimes remain to
-be connected.
+Only the normal Barrel currently continues into a complete executable actor,
+collision, animation, OAM/DMA and visible-render path. Other streamed types are
+catalogued, slotted and dispatched, but their individual behavior and rendering
+remain to be connected.
 
 ## Authentic Barrel path
-
-The source-driven object continues through the previously translated systems:
 
 ```text
 original level record
@@ -143,11 +155,10 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-There are now **99 automated tests configured**: 98 C tests and one Python
-control-flow test. The new synthetic full-list import and camera-stream harnesses
-were also compiled and executed in a focused strict-warning build using
-`-Wall -Wextra -Wpedantic -Werror`. The complete repository suite and remote CI
-were not run in this stage.
+There are now **101 automated tests configured**: 100 C tests and one Python
+control-flow test. The new definition-stack and full-catalog regressions pass in
+a focused local build with `-Wall -Wextra -Wpedantic -Werror`. The complete
+repository suite and remote CI were not run in this stage.
 
 ## Validate all scene frontends
 
@@ -155,10 +166,6 @@ were not run in this stage.
 ./build/dk1_frontend_validate \
   "rom/Donkey Kong Country (USA) (Rev 2).sfc"
 ```
-
-The validator reports terrain and player dispatch, whole object-list import,
-camera-stream lifecycle, Barrel discovery/spawn totals and an aggregate render
-signature.
 
 ## Interactive preview
 
