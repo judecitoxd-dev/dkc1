@@ -18,6 +18,16 @@
 #include "dk1/ppu_compositor.h"
 #include "dk1/scene_runtime.h"
 
+#define DK1_SOFTWARE_FRONTEND_GNAWTY_CAPACITY 4u
+#define DK1_SOFTWARE_FRONTEND_EXTRA_GNAWTIES \
+    (DK1_SOFTWARE_FRONTEND_GNAWTY_CAPACITY - 1u)
+
+typedef struct Dk1SoftwareGnawtySlot {
+    Dk1GnawtyRuntime *runtime;
+    size_t record_index;
+    bool ready;
+} Dk1SoftwareGnawtySlot;
+
 typedef struct Dk1SoftwareFrontend {
     Dk1SceneRuntime runtime;
     Dk1HostInputState input;
@@ -29,11 +39,17 @@ typedef struct Dk1SoftwareFrontend {
     Dk1PlayerCombatRuntime player_combat;
     Dk1PlayerTerrainRuntime player_terrain;
     Dk1BarrelSceneRuntime barrel;
+    /* The first actor remains embedded for source compatibility with existing
+     * probes. Additional visible Gnawties are allocated only while streamed. */
     Dk1GnawtyRuntime gnawty;
+    Dk1SoftwareGnawtySlot
+        additional_gnawties[DK1_SOFTWARE_FRONTEND_EXTRA_GNAWTIES];
     Dk1DynamicStreamState stream;
     Dk1LevelObjectStream level_objects;
     const Dk1RomImage *source_rom;
     size_t gnawty_record_index;
+    size_t gnawty_active_count;
+    size_t gnawty_capacity_overflow_count;
     uint8_t obsel;
     int16_t marker_x, marker_y;
     uint16_t marker_tile;
@@ -50,12 +66,14 @@ bool dk1_software_frontend_init_with_rom(const Dk1RomImage *,
                                          const Dk1SceneMemory *,
                                          uint16_t, uint16_t,
                                          Dk1SoftwareFrontend *);
+void dk1_software_frontend_dispose(Dk1SoftwareFrontend *);
 bool dk1_software_frontend_spawn_barrel(Dk1SoftwareFrontend *,
                                         uint16_t type_id,
                                         uint16_t world_x,
                                         int16_t world_y);
-/* Connects the first currently active source Gnawty to its executable runtime.
- * The camera stream remains authoritative for source record and slot lifetime. */
+/* Connects every currently visible source Gnawty up to the bounded portable
+ * preview capacity. The camera stream remains authoritative for record and
+ * original primary-slot lifetime. */
 bool dk1_software_frontend_sync_gnawty(Dk1SoftwareFrontend *);
 bool dk1_software_frontend_step(const Dk1SceneMemory *, uint16_t,
                                 Dk1SoftwareFrontend *);
