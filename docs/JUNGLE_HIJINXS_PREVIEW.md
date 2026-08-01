@@ -2,14 +2,14 @@
 
 This is the next user-facing delivery target. It is intentionally smaller than
 an original-compatible full-game port, but it must feel like a game slice rather
-than a raw level debugger: intro, title/menu, Kongo Jungle map, level entry,
-Jungle Hijinxs route and a return to the map after completion.
+than a raw level debugger: intro, title, game menu, Kongo Jungle map, level
+entry, Jungle Hijinxs route and a return to the map after completion.
 
 ## Required before publishing the user test build
 
 - Native Windows x64 executable that asks for the user's own unheadered USA Rev
   2 ROM. No ROM or extracted assets are packaged.
-- A skippable intro flow followed by a title screen and one-player menu.
+- A skippable intro flow followed by a title screen and separate game menu.
 - A navigable Kongo Jungle map shell with Jungle Hijinxs selected and a normal
   confirm action to enter the level.
 - Player can traverse the source terrain from the entrance to the far end without
@@ -27,20 +27,22 @@ Jungle Hijinxs route and a return to the map after completion.
 
 ## Current menu/map implementation stage
 
-`preview_flow` now supplies deterministic states for intro, title, map, level and
-completion. The Windows frontend presents those states and restarts the source
-level runtime whenever Jungle Hijinxs is entered from the map.
+`preview_flow` now supplies deterministic states for intro, title, game menu,
+map, level and completion. The Windows frontend presents those states and
+restarts the source level runtime whenever Jungle Hijinxs is entered from the
+map.
 
 The current shell artwork and typography are provisional native overlays. The
-next fidelity pass will identify and render the original intro/title/map visual
-packages from the user's ROM rather than packaging copied artwork.
+next fidelity pass will identify and render the original intro/title/menu/map
+visual packages from the user's ROM rather than packaging copied artwork.
 
 ## Allowed provisional differences in the first test
 
 - The end trigger may use the level's maximum camera/player coordinate instead of
   the original exit object and celebration sequence.
-- The intro, title and map may initially use placeholder presentation while their
-  original ROM-driven scene packages and animations are being connected.
+- The intro, title, game menu and map may initially use placeholder presentation
+  while their original ROM-driven scene packages and animations are being
+  connected.
 - Collectibles may initially be non-interactive or omitted from the HUD.
 - Only Gnawty and the source Barrel are required as interactive objects in the
   first public test; other enemies remain a later fidelity pass.
