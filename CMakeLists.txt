@@ -235,6 +235,7 @@ foreach(test_name IN ITEMS
     rom_image
     rom_terrain
     save_state
+    scene_asset_loading
     scene_package_plan
     scene_recipe
     scene_runtime
