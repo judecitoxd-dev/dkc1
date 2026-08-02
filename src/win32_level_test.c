@@ -23,8 +23,20 @@ static bool restart_direct_test(Dk1Win32App *app,
     return true;
 }
 
+static bool player_below_test_envelope(const Dk1Win32App *app) {
+    int32_t screen_y;
+    if (app == NULL)
+        return false;
+    screen_y = (int32_t)app->frontend.player_vertical_origin -
+               (int32_t)app->frontend.runtime.view.camera_y -
+               (int32_t)app->frontend.player_preview.motion.world_y;
+    return screen_y > (int32_t)app->height + 96;
+}
+
 static void write_direct_test_report(const Dk1Win32App *app,
-                                     const Dk1FirstLevelRoute *route) {
+                                     const Dk1FirstLevelRoute *route,
+                                     uint32_t manual_restarts,
+                                     uint32_t fall_restarts) {
     FILE *file;
     uint32_t bg1_generation = 0u;
     size_t bg1_columns = 0u;
@@ -49,6 +61,10 @@ static void write_direct_test_report(const Dk1Win32App *app,
     fprintf(file, "route_exit_x=%lu\n", (unsigned long)route->exit_x);
     fprintf(file, "checkpoints_reached=%u\n",
             (unsigned)route->checkpoints_reached);
+    fprintf(file, "manual_restarts=%lu\n",
+            (unsigned long)manual_restarts);
+    fprintf(file, "fall_restarts=%lu\n",
+            (unsigned long)fall_restarts);
     fprintf(file, "textures_preloaded=%u\n",
             app->startup_visuals_warmed ? 1u : 0u);
     fprintf(file, "scene_cache_hit=%u\n", app->scene != NULL &&
@@ -73,6 +89,8 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous_instance,
     char rom_path[MAX_PATH];
     ULONGLONG next_frame;
     ULONGLONG title_time;
+    uint32_t manual_restarts = 0u;
+    uint32_t fall_restarts = 0u;
     int result = 1;
     bool completion_reported = false;
     (void)previous_instance;
@@ -147,6 +165,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous_instance,
             (route.completed &&
              (pressed & DK1_HOST_BUTTON_START) != 0u);
         if (restart_requested) {
+            ++manual_restarts;
             if (!restart_direct_test(&app, &route)) {
                 MessageBoxA(app.window,
                             "Jungle Hijinxs could not be restarted.",
@@ -169,6 +188,19 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous_instance,
                 break;
             }
 
+            if (player_below_test_envelope(&app)) {
+                ++fall_restarts;
+                if (!restart_direct_test(&app, &route)) {
+                    MessageBoxA(app.window,
+                                "The player fell and the level could not restart.",
+                                "DK1 level test", MB_ICONERROR);
+                    break;
+                }
+                completion_reported = false;
+                next_frame = GetTickCount64();
+                continue;
+            }
+
             dk1_first_level_route_step(
                 &route, app.frontend.player_preview.motion.world_x);
             app.route_completed = route.completed;
@@ -178,7 +210,8 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous_instance,
 
         if (app.route_completed && !completion_reported) {
             completion_reported = true;
-            write_direct_test_report(&app, &route);
+            write_direct_test_report(&app, &route,
+                                     manual_restarts, fall_restarts);
             MessageBoxA(app.window,
                         "You reached the provisional end of Jungle Hijinxs. "
                         "Press Enter or R to restart, or Esc to exit. A test "
@@ -187,14 +220,16 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous_instance,
         }
 
         if (GetTickCount64() - title_time >= 250u) {
-            char title[448];
+            char title[512];
             snprintf(title, sizeof(title),
                      "Jungle Hijinxs direct test - route:%u%% checkpoints:%u/4 "
-                     "X:%u - textures:%s - A/D move | Z jump | U barrel | "
-                     "R restart | Esc exit",
+                     "X:%u restarts:%lu/%lu - textures:%s - A/D move | Z jump "
+                     "| U barrel | R restart | Esc exit",
                      (unsigned)route.progress_percent,
                      (unsigned)route.checkpoints_reached,
                      (unsigned)app.frontend.player_preview.motion.world_x,
+                     (unsigned long)manual_restarts,
+                     (unsigned long)fall_restarts,
                      app.startup_visuals_warmed ? "preloaded" : "runtime");
             SetWindowTextA(app.window, title);
             title_time = GetTickCount64();
@@ -206,7 +241,8 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous_instance,
         else
             next_frame = GetTickCount64();
     }
-    write_direct_test_report(&app, &route);
+    write_direct_test_report(&app, &route,
+                             manual_restarts, fall_restarts);
     result = 0;
 
 cleanup:
