@@ -18,6 +18,7 @@ Set-StrictMode -Version Latest
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
 $buildPath = Join-Path $repositoryRoot $BuildDirectory
 $packagePath = Join-Path $buildPath "package"
+$buildLog = Join-Path $buildPath "DK1-Windows-Build.log"
 $outputPath = if ([System.IO.Path]::IsPathRooted($OutputZip)) {
     $OutputZip
 } else {
@@ -40,6 +41,7 @@ if (-not (Test-Path $developerCommand)) {
 }
 
 New-Item -ItemType Directory -Force -Path $buildPath | Out-Null
+Remove-Item $buildLog -Force -ErrorAction SilentlyContinue
 
 $configureAndBuild = @(
     "call `"$developerCommand`" -no_logo -arch=$Architecture -host_arch=x64",
@@ -48,9 +50,11 @@ $configureAndBuild = @(
 ) -join " && "
 
 Write-Host "Configuring and building the Windows preview..."
-& $env:COMSPEC /d /s /c $configureAndBuild
-if ($LASTEXITCODE -ne 0) {
-    throw "The MSVC build failed with exit code $LASTEXITCODE."
+$buildOutput = & $env:COMSPEC /d /s /c $configureAndBuild 2>&1
+$buildExitCode = $LASTEXITCODE
+$buildOutput | Tee-Object -FilePath $buildLog
+if ($buildExitCode -ne 0) {
+    throw "The MSVC build failed with exit code $buildExitCode. See $buildLog"
 }
 
 Remove-Item -Recurse -Force $packagePath -ErrorAction SilentlyContinue
@@ -67,6 +71,7 @@ $previewTarget = Join-Path $packagePath "DK1-Jungle-Hijinxs-Preview.exe"
 $directTarget = Join-Path $packagePath "DK1-Jungle-Hijinxs-Direct-Test.exe"
 Copy-Item $previewSource $previewTarget
 Copy-Item $directSource $directTarget
+Copy-Item $buildLog $packagePath
 
 $readme = @'
 DK1 Jungle Hijinxs provisional Windows test package
@@ -80,11 +85,15 @@ FASTEST TEST
 5. Reaching 100 percent writes DK1-Jungle-Hijinxs-Test-Report.txt.
 
 PREFLIGHT ONLY
-Run from PowerShell or Command Prompt:
+Interactive:
   DK1-Jungle-Hijinxs-Direct-Test.exe --preflight "C:\path\game.sfc"
 
-This loads and certifies the first-level startup systems, writes
-DK1-Jungle-Hijinxs-Preflight.txt and exits without opening the playable window.
+Quiet automation:
+  DK1-Jungle-Hijinxs-Direct-Test.exe --preflight-quiet "C:\path\game.sfc"
+
+Both modes load and certify the first-level startup systems and write
+DK1-Jungle-Hijinxs-Preflight.txt without opening the playable window. Quiet mode
+uses its process exit code and does not display message boxes.
 
 CONTROLS
 - Left/Right or A/D: move
@@ -108,14 +117,19 @@ Set-Content -Path (Join-Path $packagePath "README.txt") -Value $readme -Encoding
 if (-not [string]::IsNullOrWhiteSpace($RomPath)) {
     $resolvedRom = (Resolve-Path $RomPath).Path
     $quotedRom = '"' + $resolvedRom + '"'
-    Write-Host "Running the first-level startup preflight..."
-    $preflightProcess = Start-Process -FilePath $directTarget -ArgumentList @("--preflight", $quotedRom) -WorkingDirectory $repositoryRoot -Wait -PassThru
-    if ($preflightProcess.ExitCode -ne 0) {
-        throw "The startup preflight failed with exit code $($preflightProcess.ExitCode)."
-    }
     $preflightReport = Join-Path $repositoryRoot "DK1-Jungle-Hijinxs-Preflight.txt"
+    Remove-Item $preflightReport -Force -ErrorAction SilentlyContinue
+    Write-Host "Running the first-level startup preflight..."
+    $preflightProcess = Start-Process -FilePath $directTarget -ArgumentList @("--preflight-quiet", $quotedRom) -WorkingDirectory $repositoryRoot -Wait -PassThru
+    if ($preflightProcess.ExitCode -ne 0) {
+        throw "The startup preflight failed with exit code $($preflightProcess.ExitCode). See $preflightReport"
+    }
     if (-not (Test-Path $preflightReport)) {
         throw "The executable exited successfully but did not write the startup preflight report."
+    }
+    $preflightText = Get-Content -Raw $preflightReport
+    if ($preflightText -notmatch "(?m)^ready=1\s*$") {
+        throw "The startup preflight report did not certify ready=1."
     }
     Copy-Item $preflightReport $packagePath
 }
@@ -124,6 +138,14 @@ Remove-Item $outputPath -Force -ErrorAction SilentlyContinue
 Compress-Archive -Path (Join-Path $packagePath "*") -DestinationPath $outputPath -CompressionLevel Optimal
 
 $hash = Get-FileHash -Algorithm SHA256 $outputPath
+$manifest = @(
+    "configuration=$Configuration",
+    "architecture=$Architecture",
+    "rom_preflight=$(-not [string]::IsNullOrWhiteSpace($RomPath))",
+    "zip_sha256=$($hash.Hash.ToLowerInvariant())"
+)
+Set-Content -Path (Join-Path $buildPath "DK1-Windows-Package.txt") -Value $manifest -Encoding UTF8
+
 Write-Host ""
 Write-Host "Windows preview package created:"
 Write-Host "  $outputPath"
