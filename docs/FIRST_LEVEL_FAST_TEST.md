@@ -10,7 +10,7 @@ The next user-facing delivery is intentionally smaller than a faithful full-game
 preview. Its purpose is to get a Windows build into the user's hands quickly and
 collect real play feedback.
 
-Current implementation estimate: **98 percent complete, 2 percent remaining**.
+Current implementation estimate: **99 percent complete, 1 percent remaining**.
 This percentage measures only the fast Windows first-level tester described
 below, not the complete game or a fully faithful Jungle Hijinxs conversion.
 
@@ -46,8 +46,7 @@ Implemented for the fast test:
 - Provide a local Visual Studio builder that compiles the two Windows frontends
   plus the headless validator, builds ROM-backed regressions for compile
   coverage, runs key ROM-independent smoke tests, records the build log,
-  packages the result and calculates its SHA-256 without depending on GitHub
-  Actions.
+  packages the result and calculates its SHA-256.
 - Refuse to package a ROM-certified build unless both reports contain
   `ready=1`, the route report contains seven checkpoints,
   `streaming_progress=1` and provisional completion is confirmed.
@@ -55,42 +54,42 @@ Implemented for the fast test:
   certify and package in one operation.
 - Package the direct tester, normal shell preview and route validator together.
 
-The isolated startup-preflight regression compiles and passes with strict C11
-warnings treated as errors. The strengthened route validator is connected to
-strict compiler flags and the Windows builder, but still requires the pending
-full MSVC/legal-ROM execution before it can be called certified.
+## Successful hosted build
 
-Local Windows build:
+The migrated repository's first validation run succeeded on both runners:
 
-```powershell
-./tools/build_windows_preview.ps1
-```
+- Linux configured and compiled the project, ran the ROM-independent suite and
+  checked Python syntax.
+- Windows compiled the preview, direct tester, headless route validator and the
+  selected regression targets.
+- The Windows smoke tests `first_level_route`, `dynamic_bg1_runtime` and
+  `software_frontend_dispose` all passed.
+- GitHub Actions uploaded artifact `8837513552` with artifact digest
+  `sha256:4c2242154f54dc5c0f770942c56fe88a31c7e297e800c487d6f3b55e953b87bd`.
 
-Build, certify startup and all seven route points with a legal ROM, then package:
-
-```powershell
-./tools/build_windows_preview.ps1 -RomPath "C:\path\game.sfc"
-```
-
-The simplest certified route is to drag the legal `.sfc` file onto:
+The downloadable package inside that artifact contains:
 
 ```text
-BUILD-WINDOWS-PREVIEW.bat
+DK1-Jungle-Hijinxs-Direct-Test.exe
+DK1-Jungle-Hijinxs-Preview.exe
+DK1-Jungle-Hijinxs-Route-Validate.exe
+DK1-Windows-Build.log
+README.txt
 ```
 
-Remaining before delivery:
+The inner user package SHA-256 is:
 
-- Complete one real full-project MSVC Windows build.
-- Run startup preflight and the seven-point headless route validator with a
-  supported legal ROM, confirming `ready=1`, `streaming_progress=1` and
-  `route_completed=1`.
-- Fix any compile or first-run defect found by that final execution.
-- Publish the resulting Windows ZIP artifact.
+```text
+42a8033428d8d628750dc186ab595b32df5bfe936cd135c39ea407e9fcbd6a39
+```
 
-The new fork contains the workflow files, but no checks appeared after opening
-its first validation pull request. GitHub Actions may still need to be enabled
-manually once for the fork. The local certified builder remains the independent
-fallback and primary delivery gate.
+Remaining before marking the fast tester complete:
+
+- Launch the newly compiled direct tester with a supported legal ROM.
+- Confirm startup preflight reports `ready=1`.
+- Run or play through the level and confirm the seven-point route validator
+  reports `ready=1`, `streaming_progress=1` and `route_completed=1`.
+- Fix any first-run or gameplay defect revealed by that ROM-backed test.
 
 Deferred until after this fast test:
 
