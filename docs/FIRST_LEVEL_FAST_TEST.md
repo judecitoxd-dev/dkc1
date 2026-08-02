@@ -4,7 +4,7 @@ The next user-facing delivery is intentionally smaller than a faithful full-game
 preview. Its purpose is to get a Windows build into the user's hands quickly and
 collect real play feedback.
 
-Current implementation estimate: **92 percent complete, 8 percent remaining**.
+Current implementation estimate: **95 percent complete, 5 percent remaining**.
 This percentage measures only the fast Windows first-level tester described
 below, not the complete game or a fully faithful Jungle Hijinxs conversion.
 
@@ -23,9 +23,17 @@ Implemented for the fast test:
 - Write a diagnostic report containing progress, cache, graphics and restart data.
 - Certify startup textures, palettes, packages, terrain, objects, dynamic BG1,
   player DMA, view and route bounds before opening the playable window.
-- Support `--preflight` to write a startup report and exit without playing.
-- Provide a local Visual Studio builder that compiles, packages and hashes both
-  Windows executables without depending on GitHub Actions.
+- Support interactive `--preflight` and unattended `--preflight-quiet` modes.
+- Write a failure-stage report and meaningful process exit code when quiet
+  certification cannot initialize or validate the level.
+- Use one shared SPC RAM definition and compile both audio-driver headers
+  together to prevent the former macro-redefinition warning.
+- Provide a local Visual Studio builder that compiles both Windows executables,
+  builds ROM-backed regressions for compile coverage, runs the key
+  ROM-independent smoke tests, records the build log, packages the result and
+  calculates its SHA-256 without depending on GitHub Actions.
+- Allow a legal ROM to be dragged onto `BUILD-WINDOWS-PREVIEW.bat` to build,
+  certify and package in one operation.
 - Package the direct tester and normal shell preview together.
 
 The isolated startup-preflight regression compiles and passes with strict C11
@@ -44,14 +52,24 @@ Build, certify with a legal ROM and package:
 ./tools/build_windows_preview.ps1 -RomPath "C:\path\game.sfc"
 ```
 
-`BUILD-WINDOWS-PREVIEW.bat` is a one-click wrapper for the same builder.
+The simplest certified route is to drag the legal `.sfc` file onto:
+
+```text
+BUILD-WINDOWS-PREVIEW.bat
+```
 
 Remaining before delivery:
 
 - Complete one real full-project MSVC Windows build.
-- Run the newly built direct executable with a supported legal ROM.
-- Fix any compile or first-run defects discovered by that validation.
+- Run the newly built direct executable with a supported legal ROM and confirm
+  that the generated preflight report contains `ready=1`.
+- Fix any compile or first-run defect found by that final execution.
 - Publish the resulting Windows ZIP artifact.
+
+GitHub-hosted Linux and Windows jobs remain unavailable at runner startup: the
+latest validation attempt again terminated before checkout and exposed no steps
+or logs. The local certified builder is now the primary delivery route rather
+than repeatedly retrying an unavailable runner.
 
 Deferred until after this fast test:
 
