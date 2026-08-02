@@ -5,8 +5,8 @@
 #include <stddef.h>
 #include <stdint.h>
 #include "dk1/rom_image.h"
+#include "dk1/spc_memory.h"
 
-#define DK1_SPC_RAM_SIZE 65536u
 #define DK1_SPC_DRIVER_CODE_SOURCE 0x8AA36Eu
 #define DK1_SPC_DRIVER_CODE_TARGET 0x04E8u
 #define DK1_SPC_DRIVER_CODE_SIZE 0x0D7Bu
