@@ -5,10 +5,10 @@
 #include <stddef.h>
 #include <stdint.h>
 #include "dk1/rom_image.h"
+#include "dk1/spc_memory.h"
 
 #define DK1_APU_DRIVER_SOURCE_TABLE 0x8AB15Eu
 #define DK1_APU_DRIVER_SOURCE_COUNT 27u
-#define DK1_SPC_RAM_SIZE 0x10000u
 
 typedef struct Dk1ApuDriverSource {
     uint16_t address;
