@@ -2,6 +2,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include "dk1/apu_driver_catalog.h"
+#include "dk1/spc700_driver_startup.h"
+
+_Static_assert(DK1_SPC_RAM_SIZE == 0x10000u,
+               "SPC RAM must remain one 64 KiB address space");
+_Static_assert(sizeof(((Dk1Spc700DriverStartup *)0)->ram) ==
+                   DK1_SPC_RAM_SIZE,
+               "driver startup RAM must use the shared SPC capacity");
 
 int main(void) {
     Dk1OwnedRom owned = {0};
