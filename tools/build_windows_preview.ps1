@@ -113,10 +113,12 @@ HEADLESS ROUTE VALIDATION
   DK1-Jungle-Hijinxs-Route-Validate.exe "C:\path\game.sfc"
 
 The route validator loads the same first-level runtime, searches for valid terrain
-near six points from 0 to 95 percent, updates camera/object/background streaming,
-renders a real frame at every point and verifies provisional completion. It writes
+near seven points from 0 to 99 percent, updates camera/object/background streaming,
+renders a real frame at every point and verifies provisional completion. It also
+requires monotonic world/camera progress, advancing BG1 streaming, a changed final
+frame and a final rendered position close to the route exit. It writes
 DK1-Jungle-Hijinxs-Route-Validation.txt and returns a failing process exit code if
-any point cannot be placed, stepped or rendered.
+any condition is not met.
 
 CONTROLS
 - Left/Right or A/D: move
@@ -182,8 +184,9 @@ if (-not [string]::IsNullOrWhiteSpace($RomPath)) {
     $routeText = Get-Content -Raw $routeReport
     if ($routeText -notmatch "(?m)^ready=1\s*$" -or
         $routeText -notmatch "(?m)^route_completed=1\s*$" -or
-        $routeText -notmatch "(?m)^checkpoint_count=6\s*$") {
-        throw "The headless route report did not certify all six checkpoints and completion."
+        $routeText -notmatch "(?m)^streaming_progress=1\s*$" -or
+        $routeText -notmatch "(?m)^checkpoint_count=7\s*$") {
+        throw "The headless route report did not certify all seven checkpoints, streaming progress and completion."
     }
     $routeCertified = $true
     Copy-Item $routeReport $packagePath
@@ -197,6 +200,7 @@ $manifest = @(
     "configuration=$Configuration",
     "architecture=$Architecture",
     "smoke_tests=first_level_route,dynamic_bg1_runtime,software_frontend_dispose",
+    "route_checkpoints=7",
     "rom_preflight=$romCertified",
     "headless_route=$routeCertified",
     "zip_sha256=$($hash.Hash.ToLowerInvariant())"
