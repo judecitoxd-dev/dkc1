@@ -36,7 +36,8 @@ jobs:
              immediately, skipping the provisional intro/menu/map.
           4. The window title reports stable route progress and four route
              checkpoints. Walking backwards does not lower the percentage.
-          5. Reaching 100 percent freezes the completed run and writes
+          5. Falling far below the viewport automatically restarts the level.
+          6. Reaching 100 percent freezes the completed run and writes
              DK1-Jungle-Hijinxs-Test-Report.txt beside the program.
 
           FULL PREVIEW FLOW:
@@ -48,9 +49,14 @@ jobs:
           - Left/Right or A/D: move
           - Z: jump
           - U: pick up / throw barrel
+          - F2: test-only rescue warp forward by 10 percent, up to 95 percent
           - R: restart the direct test from the beginning
           - Enter: restart after completing the direct test
           - Esc: exit
+
+          F2 exists only so an incomplete collision or object callback cannot
+          prevent testing the later parts of the current route. The generated
+          report records how many rescue warps and restarts were used.
 
           No ROM or copyrighted extracted assets are included. Both programs
           read graphics and palettes from the user's legal ROM/cache.
