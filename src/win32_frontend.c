@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "dk1/level_software_frontend.h"
+#include "dk1/preview_asset_warmup.h"
 #include "dk1/preview_flow.h"
 #include "dk1/rom_image.h"
 #include "dk1/scene_asset_cache.h"
@@ -22,6 +23,7 @@ typedef struct Dk1Win32App {
     Dk1SceneMemory *scene;
     Dk1SoftwareFrontend frontend;
     Dk1LevelSoftwareFrontendStats source_stats;
+    Dk1PreviewAssetWarmupStats warmup_stats;
     Dk1PreviewFlow flow;
     Dk1Rgba8 *pixels;
     uint32_t *dib_pixels;
@@ -35,6 +37,9 @@ typedef struct Dk1Win32App {
     bool running;
     bool ready;
     bool route_completed;
+    bool level_preloaded;
+    bool startup_textures_ready;
+    bool startup_visuals_warmed;
     char cache_path[DK1_SCENE_ASSET_CACHE_PATH_CAPACITY];
 } Dk1Win32App;
 
@@ -129,7 +134,9 @@ static void draw_shell_overlay(HDC dc, const Dk1Win32App *app,
         const char *subtitle = "Clean-room native PC preview";
         if (app->flow.intro_page == 1u) {
             title = "DONKEY KONG COUNTRY";
-            subtitle = "Original visuals are loaded from your legal ROM";
+            subtitle = app->startup_visuals_warmed
+                ? "Level textures, palettes and first sprites are preloaded"
+                : "Loading original level textures from your legal ROM";
         } else if (app->flow.intro_page >= 2u) {
             title = "KONGO JUNGLE";
             subtitle = "A provisional intro, menu, map and first-level slice";
@@ -365,11 +372,15 @@ static void convert_frame(Dk1Win32App *app) {
 
 static bool reset_level_runtime(Dk1Win32App *app) {
     const char *cache_path;
-    if (app == NULL || app->scene == NULL)
+    Dk1RgbaSurface scratch;
+    if (app == NULL || app->scene == NULL || app->pixels == NULL)
         return false;
     dk1_software_frontend_dispose(&app->frontend);
     memset(&app->frontend, 0, sizeof(app->frontend));
     memset(&app->source_stats, 0, sizeof(app->source_stats));
+    memset(&app->warmup_stats, 0, sizeof(app->warmup_stats));
+    app->startup_textures_ready = false;
+    app->startup_visuals_warmed = false;
     cache_path = app->cache_path[0] != '\0' ? app->cache_path : NULL;
     if (!dk1_scene_memory_load_cached(&app->rom, app->level,
                                       false, false, cache_path,
@@ -379,8 +390,18 @@ static bool reset_level_runtime(Dk1Win32App *app) {
             (uint16_t)app->width, (uint16_t)app->height,
             &app->frontend, &app->source_stats))
         return false;
+    scratch = (Dk1RgbaSurface){app->pixels, (size_t)app->width,
+                               (size_t)app->height, (size_t)app->width};
+    if (!dk1_preview_asset_warmup(
+            &app->rom, app->scene, &app->frontend,
+            scratch, &app->warmup_stats))
+        return false;
+    app->startup_textures_ready =
+        app->warmup_stats.scene_textures_ready &&
+        app->warmup_stats.scene_palettes_ready;
+    app->startup_visuals_warmed = app->warmup_stats.player_visual_ready;
     app->route_completed = false;
-    return true;
+    return app->startup_textures_ready && app->startup_visuals_warmed;
 }
 
 static bool initialize_game(Dk1Win32App *app, const char *rom_path) {
@@ -403,6 +424,7 @@ static bool initialize_game(Dk1Win32App *app, const char *rom_path) {
         app->cache_path[0] = '\0';
     if (!reset_level_runtime(app))
         return false;
+    app->level_preloaded = true;
 
     memset(&app->bitmap_info, 0, sizeof(app->bitmap_info));
     app->bitmap_info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
@@ -469,22 +491,24 @@ static const char *asset_source_name(const Dk1Win32App *app) {
 }
 
 static void update_title(Dk1Win32App *app) {
-    char title[320];
+    char title[384];
     const char *asset_source;
+    const char *warmup;
     if (app == NULL || app->window == NULL) return;
     asset_source = asset_source_name(app);
+    warmup = app->startup_visuals_warmed ? "preloaded" : "pending";
     if (app->flow.state == DK1_PREVIEW_FLOW_LEVEL) {
         snprintf(title, sizeof(title),
-                 "DK1 preview - Jungle Hijinxs X:%u - assets: %s - "
+                 "DK1 preview - Jungle Hijinxs X:%u - assets: %s/%s - "
                  "A/D move | Z jump | U barrel | Esc exit",
                  (unsigned)app->frontend.player_preview.motion.world_x,
-                 asset_source);
+                 asset_source, warmup);
     } else {
         snprintf(title, sizeof(title),
-                 "DK1 preview - %s - assets: %s - "
+                 "DK1 preview - %s - assets: %s/%s - "
                  "Enter/Z confirm | Esc exit",
                  dk1_preview_flow_state_name(app->flow.state),
-                 asset_source);
+                 asset_source, warmup);
     }
     SetWindowTextA(app->window, title);
 }
@@ -536,7 +560,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous_instance,
 
     if (!initialize_game(&app, rom_path)) {
         MessageBoxA(NULL,
-            "Could not initialize the preview. Select an unheadered USA Rev 2 ROM.",
+            "Could not preload the preview textures. Select an unheadered USA Rev 2 ROM.",
             "DK1 preview", MB_ICONERROR);
         goto cleanup;
     }
@@ -566,9 +590,12 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous_instance,
 
         if (app.flow.state_changed &&
             app.flow.state == DK1_PREVIEW_FLOW_LEVEL) {
-            if (!reset_level_runtime(&app)) {
+            if (app.level_preloaded) {
+                app.level_preloaded = false;
+                app.route_completed = false;
+            } else if (!reset_level_runtime(&app)) {
                 MessageBoxA(app.window,
-                            "The first-level runtime could not be restarted.",
+                            "The first-level textures could not be reloaded.",
                             "DK1 preview", MB_ICONERROR);
                 break;
             }

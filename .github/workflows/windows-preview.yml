@@ -15,32 +15,46 @@ jobs:
       - name: Configure MSVC Release build
         run: cmake -S . -B build -A x64
 
-      - name: Build native preview
-        run: cmake --build build --config Release --target dk1_win32 --parallel
+      - name: Build native preview and direct level test
+        run: >-
+          cmake --build build --config Release
+          --target dk1_win32 dk1_level_test_win32 --parallel
 
       - name: Package preview
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path package | Out-Null
           Copy-Item build/Release/dk1_win32.exe package/DK1-Jungle-Hijinxs-Preview.exe
+          Copy-Item build/Release/dk1_level_test_win32.exe package/DK1-Jungle-Hijinxs-Direct-Test.exe
           @'
-          DK1 Jungle Hijinxs provisional game-flow preview
+          DK1 Jungle Hijinxs provisional Windows test package
 
-          1. Run DK1-Jungle-Hijinxs-Preview.exe.
+          FASTEST TEST:
+          1. Run DK1-Jungle-Hijinxs-Direct-Test.exe.
           2. Select your own unheadered Donkey Kong Country (USA) Rev 2 .sfc ROM.
-          3. The preview follows: intro -> title -> game menu -> Kongo Jungle map
-             -> Jungle Hijinxs -> completion -> return to map.
-          4. Controls:
-             - Enter, Z or X: skip/confirm/enter level
-             - Left/Right or A/D: move in the level
-             - Z: jump in the level
-             - U: pick up / throw barrel
-             - Esc: exit
+          3. The program preloads the level textures and opens Jungle Hijinxs
+             immediately, skipping the provisional intro/menu/map.
+          4. The window title reports stable route progress and four route
+             checkpoints. Walking backwards does not lower the percentage.
+          5. Reaching 100 percent freezes the completed run and writes
+             DK1-Jungle-Hijinxs-Test-Report.txt beside the program.
 
-          No ROM or copyrighted extracted assets are included.
-          Intro/title/menu/map presentation is provisional while the original
-          ROM-driven visual packages are being connected.
-          This is a vertical slice, not a complete game build.
+          FULL PREVIEW FLOW:
+          Run DK1-Jungle-Hijinxs-Preview.exe for:
+          intro -> title -> game menu -> Kongo Jungle map -> Jungle Hijinxs
+          -> provisional completion -> return to map.
+
+          Controls:
+          - Left/Right or A/D: move
+          - Z: jump
+          - U: pick up / throw barrel
+          - R: restart the direct test from the beginning
+          - Enter: restart after completing the direct test
+          - Esc: exit
+
+          No ROM or copyrighted extracted assets are included. Both programs
+          read graphics and palettes from the user's legal ROM/cache.
+          This is a first-level vertical slice, not a complete game build.
           '@ | Set-Content -Encoding UTF8 package/README.txt
           Compress-Archive -Path package/* -DestinationPath DK1-Jungle-Hijinxs-Preview-Windows-x64.zip
 

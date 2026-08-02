@@ -15,6 +15,8 @@ add_library(dk1_core
     src/player_live_runtime.c
     src/player_combat_runtime.c
     src/preview_flow.c
+    src/preview_asset_warmup.c
+    src/first_level_route.c
     src/spc700_ipl_protocol.c
     src/player_core_runtime.c
     src/player_visual_runtime.c
@@ -46,6 +48,7 @@ add_library(dk1_core
     src/player_interrupt.c
     src/player_input_router.c
     src/player_coverage.c
+    src/dynamic_bg1_runtime.c
     src/dynamic_tile_stream.c
     src/apu_boot_image.c
     src/apu_mailbox.c
@@ -139,8 +142,12 @@ target_link_libraries(dk1_gameplay_validate PRIVATE dk1_core)
 if(WIN32)
     add_executable(dk1_win32 WIN32 src/win32_frontend.c)
     target_link_libraries(dk1_win32 PRIVATE dk1_core user32 gdi32 comdlg32)
+    add_executable(dk1_level_test_win32 WIN32 src/win32_level_test.c)
+    target_link_libraries(dk1_level_test_win32 PRIVATE
+                          dk1_core user32 gdi32 comdlg32)
     if(MSVC)
         target_compile_options(dk1_win32 PRIVATE /W4)
+        target_compile_options(dk1_level_test_win32 PRIVATE /W4)
     endif()
 endif()
 
@@ -153,6 +160,8 @@ foreach(test_name IN ITEMS
     player_live_runtime
     player_combat_runtime
     preview_flow
+    preview_asset_warmup
+    first_level_route
     software_frontend_terrain
     spc700_ipl_protocol
     spc700_ipl_driver_bridge
@@ -173,6 +182,7 @@ foreach(test_name IN ITEMS
     level_object_stream
     level_barrel_pool
     level_software_frontend
+    level_dynamic_bg1
     object_actor_runtime
     object_screen_oam
     object_frame_dma
@@ -189,6 +199,7 @@ foreach(test_name IN ITEMS
     player_interrupt
     player_input_router
     player_coverage
+    dynamic_bg1_runtime
     dynamic_tile_stream
     apu_boot_image
     reset

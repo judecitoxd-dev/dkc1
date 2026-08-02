@@ -5,6 +5,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include "dk1/barrel_scene_runtime.h"
+#include "dk1/dynamic_bg1_runtime.h"
 #include "dk1/dynamic_stream.h"
 #include "dk1/gnawty_runtime.h"
 #include "dk1/host_input.h"
@@ -40,6 +41,9 @@ typedef struct Dk1SoftwareFrontend {
     Dk1PlayerLiveRuntime player_live;
     Dk1PlayerCombatRuntime player_combat;
     Dk1PlayerTerrainRuntime player_terrain;
+    /* Runtime BG1 owns the camera-updated ring tilemap while preserving the
+     * character graphics loaded from the legal ROM or cache. */
+    Dk1DynamicBg1Runtime *dynamic_bg1;
     /* The first Barrel remains embedded for compatibility with existing
      * probes. Other visible source barrels are managed by streamed_barrels. */
     Dk1BarrelSceneRuntime barrel;

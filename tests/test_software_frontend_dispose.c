@@ -8,6 +8,10 @@ int main(void) {
     size_t i;
 
     memset(&frontend, 0, sizeof(frontend));
+    frontend.dynamic_bg1 = (Dk1DynamicBg1Runtime *)calloc(
+        1u, sizeof(*frontend.dynamic_bg1));
+    assert(frontend.dynamic_bg1 != NULL);
+    frontend.dynamic_bg1->ready = true;
     frontend.gnawty.active = true;
     frontend.gnawty_ready = true;
     frontend.gnawty_active_count = 3u;
@@ -24,6 +28,7 @@ int main(void) {
     }
 
     dk1_software_frontend_dispose(&frontend);
+    assert(frontend.dynamic_bg1 == NULL);
     assert(!frontend.gnawty.active);
     assert(!frontend.gnawty_ready);
     assert(frontend.gnawty_active_count == 0u);
@@ -36,6 +41,7 @@ int main(void) {
 
     /* Disposal is deliberately safe before initialization and after cleanup. */
     dk1_software_frontend_dispose(&frontend);
+    assert(frontend.dynamic_bg1 == NULL);
     assert(frontend.gnawty_active_count == 0u);
     assert(frontend.gnawty_capacity_overflow_count == 0u);
     return 0;

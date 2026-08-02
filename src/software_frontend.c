@@ -182,7 +182,23 @@ static bool init_common(const Dk1RomImage *r, const Dk1SceneMemory *s,
     }
     update_pos(f);
     update_marker(f);
-    return dk1_dynamic_stream_update(f->runtime.view, 128u, &f->stream, &u);
+    if (!dk1_dynamic_stream_update(
+            f->runtime.view, DK1_DYNAMIC_BG1_MAP_COLUMNS,
+            &f->stream, &u))
+        return false;
+    if (r != NULL) {
+        f->dynamic_bg1 = (Dk1DynamicBg1Runtime *)calloc(
+            1u, sizeof(*f->dynamic_bg1));
+        if (f->dynamic_bg1 == NULL)
+            return false;
+        if (!dk1_dynamic_bg1_runtime_init(
+                r, s, &u, f->dynamic_bg1)) {
+            free(f->dynamic_bg1);
+            f->dynamic_bg1 = NULL;
+            return false;
+        }
+    }
+    return true;
 }
 
 bool dk1_software_frontend_init(const Dk1SceneMemory *s, uint16_t w,
@@ -201,6 +217,8 @@ void dk1_software_frontend_dispose(Dk1SoftwareFrontend *f) {
     size_t i;
     if (f == NULL)
         return;
+    free(f->dynamic_bg1);
+    f->dynamic_bg1 = NULL;
     dk1_level_barrel_pool_dispose(&f->streamed_barrels);
     for (i = 0u; i < DK1_SOFTWARE_FRONTEND_EXTRA_GNAWTIES; ++i)
         release_additional_gnawty(&f->additional_gnawties[i]);
@@ -352,7 +370,13 @@ bool dk1_software_frontend_step(const Dk1SceneMemory *s, uint16_t held,
     dk1_host_input_update(&f->input, held);
     dk1_player_combat_step(&f->player_combat);
     if (!dk1_scene_runtime_step(s, held, &f->runtime)) return false;
-    if (!dk1_dynamic_stream_update(f->runtime.view, 128u, &f->stream, &u))
+    if (!dk1_dynamic_stream_update(
+            f->runtime.view, DK1_DYNAMIC_BG1_MAP_COLUMNS,
+            &f->stream, &u))
+        return false;
+    if (f->dynamic_bg1 != NULL &&
+        !dk1_dynamic_bg1_runtime_update(
+            f->source_rom, s, &u, f->dynamic_bg1))
         return false;
     if (f->level_objects_ready &&
         !dk1_level_object_stream_update(
@@ -461,7 +485,12 @@ bool dk1_software_frontend_render(const Dk1RomImage *r,
         px = calloc(d.width * d.height, sizeof(*px));
         if (px != NULL) {
             st = (Dk1RgbaSurface){px, d.width, d.height, d.width};
-            streamed = dk1_scene_render_bg1(r, s, f->runtime.view, st);
+            if (f->dynamic_bg1 != NULL && f->dynamic_bg1->ready)
+                streamed = dk1_dynamic_bg1_runtime_render(
+                    s, f->runtime.view, f->dynamic_bg1, st);
+            else
+                streamed = dk1_scene_render_bg1(
+                    r, s, f->runtime.view, st);
             if (streamed)
                 memcpy(d.pixels, px, d.width * d.height * sizeof(*px));
             free(px);
@@ -518,11 +547,17 @@ bool dk1_software_frontend_render(const Dk1RomImage *r,
 uint64_t dk1_software_frontend_signature(const Dk1SoftwareFrontend *f) {
     uint64_t h = 0;
     uint64_t barrel_pool_signature;
+    uint64_t dynamic_bg1_signature = 0u;
     size_t i;
     if (f == NULL) return 0u;
     h = dk1_fnv1a64(&f->runtime, sizeof(f->runtime), h);
     h = dk1_fnv1a64(&f->input, sizeof(f->input), h);
     h = dk1_fnv1a64(&f->stream, sizeof(f->stream), h);
+    if (f->dynamic_bg1 != NULL)
+        dynamic_bg1_signature =
+            dk1_dynamic_bg1_runtime_signature(f->dynamic_bg1);
+    h = dk1_fnv1a64(&dynamic_bg1_signature,
+                    sizeof(dynamic_bg1_signature), h);
     h = dk1_fnv1a64(&f->level_objects_ready,
                     sizeof(f->level_objects_ready), h);
     if (f->level_objects_ready)
