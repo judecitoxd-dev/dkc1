@@ -33,10 +33,57 @@ static bool player_below_test_envelope(const Dk1Win32App *app) {
     return screen_y > (int32_t)app->height + 96;
 }
 
+static bool warp_direct_test(Dk1Win32App *app,
+                             Dk1FirstLevelRoute *route,
+                             uint8_t target_percent) {
+    Dk1PlayerPreviewRuntime *player;
+    uint32_t distance;
+    uint32_t target_x;
+    uint32_t camera_x;
+    if (app == NULL || route == NULL || app->scene == NULL ||
+        !app->frontend.player_terrain_ready || target_percent > 99u)
+        return false;
+    distance = route->exit_x - route->start_x;
+    target_x = route->start_x + distance * target_percent / 100u;
+    if (target_x >= route->exit_x)
+        target_x = route->exit_x - 1u;
+    if (target_x > UINT16_MAX)
+        return false;
+
+    player = &app->frontend.player_preview;
+    player->motion.world_x = (uint16_t)target_x;
+    player->motion.subpixel_x = 0u;
+    player->motion.subpixel_y = 0u;
+    player->motion.velocity_x = 0;
+    player->motion.velocity_y = 0;
+    player->motion.base_velocity_x = 0;
+    player->motion.target_velocity_x = 0;
+    player->airborne = true;
+    if (!dk1_player_terrain_place(
+            &app->frontend.player_terrain, player,
+            (uint16_t)app->height,
+            &app->frontend.runtime.view.camera_y))
+        return false;
+
+    camera_x = target_x > (uint32_t)app->width / 2u
+        ? target_x - (uint32_t)app->width / 2u
+        : 0u;
+    if (camera_x > UINT16_MAX)
+        camera_x = UINT16_MAX;
+    app->frontend.runtime.view.camera_x = (uint16_t)camera_x;
+    if (!dk1_scene_view_clamp(
+            app->scene, &app->frontend.runtime.view))
+        return false;
+    dk1_first_level_route_step(route, target_x);
+    app->route_completed = route->completed;
+    return true;
+}
+
 static void write_direct_test_report(const Dk1Win32App *app,
                                      const Dk1FirstLevelRoute *route,
                                      uint32_t manual_restarts,
-                                     uint32_t fall_restarts) {
+                                     uint32_t fall_restarts,
+                                     uint32_t debug_warps) {
     FILE *file;
     uint32_t bg1_generation = 0u;
     size_t bg1_columns = 0u;
@@ -65,6 +112,8 @@ static void write_direct_test_report(const Dk1Win32App *app,
             (unsigned long)manual_restarts);
     fprintf(file, "fall_restarts=%lu\n",
             (unsigned long)fall_restarts);
+    fprintf(file, "debug_warps=%lu\n",
+            (unsigned long)debug_warps);
     fprintf(file, "textures_preloaded=%u\n",
             app->startup_visuals_warmed ? 1u : 0u);
     fprintf(file, "scene_cache_hit=%u\n", app->scene != NULL &&
@@ -91,6 +140,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous_instance,
     ULONGLONG title_time;
     uint32_t manual_restarts = 0u;
     uint32_t fall_restarts = 0u;
+    uint32_t debug_warps = 0u;
     int result = 1;
     bool completion_reported = false;
     (void)previous_instance;
@@ -149,6 +199,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous_instance,
     while (app.running) {
         uint16_t pressed;
         bool restart_requested;
+        bool warp_requested;
         while (PeekMessageA(&message, NULL, 0, 0, PM_REMOVE)) {
             if (message.message == WM_QUIT)
                 app.running = false;
@@ -164,6 +215,8 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous_instance,
             (GetAsyncKeyState('R') & 1) != 0 ||
             (route.completed &&
              (pressed & DK1_HOST_BUTTON_START) != 0u);
+        warp_requested =
+            !route.completed && (GetAsyncKeyState(VK_F2) & 1) != 0;
         if (restart_requested) {
             ++manual_restarts;
             if (!restart_direct_test(&app, &route)) {
@@ -175,6 +228,23 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous_instance,
             completion_reported = false;
             next_frame = GetTickCount64();
             continue;
+        }
+        if (warp_requested) {
+            uint8_t target_percent =
+                (uint8_t)(route.progress_percent + 10u);
+            if (target_percent > 95u)
+                target_percent = 95u;
+            if (target_percent > route.progress_percent) {
+                if (!warp_direct_test(&app, &route, target_percent)) {
+                    MessageBoxA(app.window,
+                                "The F2 test warp could not find valid terrain.",
+                                "DK1 level test", MB_ICONWARNING);
+                } else {
+                    ++debug_warps;
+                    next_frame = GetTickCount64();
+                    continue;
+                }
+            }
         }
 
         if (!route.completed) {
@@ -211,7 +281,8 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous_instance,
         if (app.route_completed && !completion_reported) {
             completion_reported = true;
             write_direct_test_report(&app, &route,
-                                     manual_restarts, fall_restarts);
+                                     manual_restarts, fall_restarts,
+                                     debug_warps);
             MessageBoxA(app.window,
                         "You reached the provisional end of Jungle Hijinxs. "
                         "Press Enter or R to restart, or Esc to exit. A test "
@@ -220,16 +291,18 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous_instance,
         }
 
         if (GetTickCount64() - title_time >= 250u) {
-            char title[512];
+            char title[560];
             snprintf(title, sizeof(title),
                      "Jungle Hijinxs direct test - route:%u%% checkpoints:%u/4 "
-                     "X:%u restarts:%lu/%lu - textures:%s - A/D move | Z jump "
-                     "| U barrel | R restart | Esc exit",
+                     "X:%u restarts:%lu/%lu warps:%lu - textures:%s - A/D "
+                     "move | Z jump | U barrel | F2 skip 10%% | R restart | "
+                     "Esc exit",
                      (unsigned)route.progress_percent,
                      (unsigned)route.checkpoints_reached,
                      (unsigned)app.frontend.player_preview.motion.world_x,
                      (unsigned long)manual_restarts,
                      (unsigned long)fall_restarts,
+                     (unsigned long)debug_warps,
                      app.startup_visuals_warmed ? "preloaded" : "runtime");
             SetWindowTextA(app.window, title);
             title_time = GetTickCount64();
@@ -242,7 +315,8 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous_instance,
             next_frame = GetTickCount64();
     }
     write_direct_test_report(&app, &route,
-                             manual_restarts, fall_restarts);
+                             manual_restarts, fall_restarts,
+                             debug_warps);
     result = 0;
 
 cleanup:
