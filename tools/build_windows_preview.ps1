@@ -46,6 +46,7 @@ Remove-Item $buildLog -Force -ErrorAction SilentlyContinue
 $targets = @(
     "dk1_win32",
     "dk1_level_test_win32",
+    "dk1_first_level_validate",
     "test_first_level_route",
     "test_dynamic_bg1_runtime",
     "test_software_frontend_dispose",
@@ -75,14 +76,19 @@ New-Item -ItemType Directory -Force -Path $packagePath | Out-Null
 $configurationPath = Join-Path $buildPath $Configuration
 $previewSource = Join-Path $configurationPath "dk1_win32.exe"
 $directSource = Join-Path $configurationPath "dk1_level_test_win32.exe"
-if (-not (Test-Path $previewSource) -or -not (Test-Path $directSource)) {
+$routeSource = Join-Path $configurationPath "dk1_first_level_validate.exe"
+if (-not (Test-Path $previewSource) -or
+    -not (Test-Path $directSource) -or
+    -not (Test-Path $routeSource)) {
     throw "The expected Windows executables were not produced."
 }
 
 $previewTarget = Join-Path $packagePath "DK1-Jungle-Hijinxs-Preview.exe"
 $directTarget = Join-Path $packagePath "DK1-Jungle-Hijinxs-Direct-Test.exe"
+$routeTarget = Join-Path $packagePath "DK1-Jungle-Hijinxs-Route-Validate.exe"
 Copy-Item $previewSource $previewTarget
 Copy-Item $directSource $directTarget
+Copy-Item $routeSource $routeTarget
 Copy-Item $buildLog $packagePath
 
 $readme = @'
@@ -103,9 +109,14 @@ Interactive:
 Quiet automation:
   DK1-Jungle-Hijinxs-Direct-Test.exe --preflight-quiet "C:\path\game.sfc"
 
-Both modes load and certify the first-level startup systems and write
-DK1-Jungle-Hijinxs-Preflight.txt without opening the playable window. Quiet mode
-uses its process exit code and does not display message boxes.
+HEADLESS ROUTE VALIDATION
+  DK1-Jungle-Hijinxs-Route-Validate.exe "C:\path\game.sfc"
+
+The route validator loads the same first-level runtime, searches for valid terrain
+near six points from 0 to 95 percent, updates camera/object/background streaming,
+renders a real frame at every point and verifies provisional completion. It writes
+DK1-Jungle-Hijinxs-Route-Validation.txt and returns a failing process exit code if
+any point cannot be placed, stepped or rendered.
 
 CONTROLS
 - Left/Right or A/D: move
@@ -120,18 +131,25 @@ FULL PREVIEW FLOW
 Run DK1-Jungle-Hijinxs-Preview.exe for the provisional intro, title, menu,
 Kongo Jungle map, Jungle Hijinxs and return-to-map flow.
 
-No ROM or copyrighted extracted assets are included. Both programs read graphics
+No ROM or copyrighted extracted assets are included. The programs read graphics
 and palettes from the user's legal ROM or its validated local cache. This is a
 first-level vertical slice, not a complete game build. The package includes the
-MSVC build and ROM-independent smoke-test log.
+MSVC build log and ROM-independent smoke-test results. A package built by dragging
+a legal ROM onto BUILD-WINDOWS-PREVIEW.bat additionally contains successful
+startup and headless route reports.
 '@
 Set-Content -Path (Join-Path $packagePath "README.txt") -Value $readme -Encoding UTF8
 
+$romCertified = $false
+$routeCertified = $false
 if (-not [string]::IsNullOrWhiteSpace($RomPath)) {
     $resolvedRom = (Resolve-Path $RomPath).Path
     $quotedRom = '"' + $resolvedRom + '"'
     $preflightReport = Join-Path $repositoryRoot "DK1-Jungle-Hijinxs-Preflight.txt"
+    $routeReport = Join-Path $repositoryRoot "DK1-Jungle-Hijinxs-Route-Validation.txt"
     Remove-Item $preflightReport -Force -ErrorAction SilentlyContinue
+    Remove-Item $routeReport -Force -ErrorAction SilentlyContinue
+
     Write-Host "Running the first-level startup preflight..."
     $preflightProcess = Start-Process -FilePath $directTarget -ArgumentList @("--preflight-quiet", $quotedRom) -WorkingDirectory $repositoryRoot -Wait -PassThru
     if ($preflightProcess.ExitCode -ne 0) {
@@ -144,7 +162,31 @@ if (-not [string]::IsNullOrWhiteSpace($RomPath)) {
     if ($preflightText -notmatch "(?m)^ready=1\s*$") {
         throw "The startup preflight report did not certify ready=1."
     }
+    $romCertified = $true
     Copy-Item $preflightReport $packagePath
+
+    Write-Host "Running the headless first-level route validation..."
+    Push-Location $repositoryRoot
+    try {
+        & $routeTarget $resolvedRom $routeReport
+        $routeExitCode = $LASTEXITCODE
+    } finally {
+        Pop-Location
+    }
+    if ($routeExitCode -ne 0) {
+        throw "The headless route validation failed with exit code $routeExitCode. See $routeReport"
+    }
+    if (-not (Test-Path $routeReport)) {
+        throw "The route validator exited successfully but did not write its report."
+    }
+    $routeText = Get-Content -Raw $routeReport
+    if ($routeText -notmatch "(?m)^ready=1\s*$" -or
+        $routeText -notmatch "(?m)^route_completed=1\s*$" -or
+        $routeText -notmatch "(?m)^checkpoint_count=6\s*$") {
+        throw "The headless route report did not certify all six checkpoints and completion."
+    }
+    $routeCertified = $true
+    Copy-Item $routeReport $packagePath
 }
 
 Remove-Item $outputPath -Force -ErrorAction SilentlyContinue
@@ -155,7 +197,8 @@ $manifest = @(
     "configuration=$Configuration",
     "architecture=$Architecture",
     "smoke_tests=first_level_route,dynamic_bg1_runtime,software_frontend_dispose",
-    "rom_preflight=$(-not [string]::IsNullOrWhiteSpace($RomPath))",
+    "rom_preflight=$romCertified",
+    "headless_route=$routeCertified",
     "zip_sha256=$($hash.Hash.ToLowerInvariant())"
 )
 Set-Content -Path (Join-Path $buildPath "DK1-Windows-Package.txt") -Value $manifest -Encoding UTF8
@@ -163,4 +206,6 @@ Set-Content -Path (Join-Path $buildPath "DK1-Windows-Package.txt") -Value $manif
 Write-Host ""
 Write-Host "Windows preview package created:"
 Write-Host "  $outputPath"
+Write-Host "Startup preflight certified: $romCertified"
+Write-Host "Headless route certified: $routeCertified"
 Write-Host "SHA-256: $($hash.Hash.ToLowerInvariant())"
