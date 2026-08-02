@@ -79,6 +79,17 @@ static bool warp_direct_test(Dk1Win32App *app,
     return true;
 }
 
+static void write_initialization_failure_report(const char *stage) {
+    FILE *file = fopen("DK1-Jungle-Hijinxs-Preflight.txt", "w");
+    if (file == NULL)
+        return;
+    fprintf(file, "DK1 Jungle Hijinxs startup preflight\n");
+    fprintf(file, "ready=0\n");
+    fprintf(file, "stage=%s\n", stage != NULL ? stage : "unknown");
+    fprintf(file, "failure_mask=0xFFFFFFFF\n");
+    fclose(file);
+}
+
 static void write_preflight_report(
     const Dk1Win32App *app,
     const Dk1FirstLevelRoute *route,
@@ -194,6 +205,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous_instance,
     int result = 1;
     bool completion_reported = false;
     bool preflight_only = false;
+    bool preflight_quiet = false;
     (void)previous_instance;
     (void)command_line;
     (void)show_command;
@@ -207,51 +219,71 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous_instance,
     app.running = true;
     g_app = &app;
 
-    if (__argc >= 2 && strcmp(__argv[1], "--preflight") == 0) {
+    if (__argc >= 2 &&
+        (strcmp(__argv[1], "--preflight") == 0 ||
+         strcmp(__argv[1], "--preflight-quiet") == 0)) {
         preflight_only = true;
+        preflight_quiet = strcmp(__argv[1], "--preflight-quiet") == 0;
         rom_argument = 2;
     }
     if (__argc > rom_argument) {
         strncpy(rom_path, __argv[rom_argument], MAX_PATH - 1u);
         rom_path[MAX_PATH - 1u] = '\0';
+    } else if (preflight_quiet) {
+        write_initialization_failure_report("missing_rom_argument");
+        g_app = NULL;
+        return 2;
     } else if (!choose_rom(rom_path)) {
         g_app = NULL;
         return 0;
     }
 
     if (!initialize_game(&app, rom_path)) {
-        MessageBoxA(NULL,
-            "Could not preload Jungle Hijinxs. Select an unheadered USA Rev 2 ROM.",
-            "DK1 level test", MB_ICONERROR);
+        write_initialization_failure_report("initialize_game");
+        if (!preflight_quiet) {
+            MessageBoxA(NULL,
+                "Could not preload Jungle Hijinxs. Select an unheadered USA Rev 2 ROM.",
+                "DK1 level test", MB_ICONERROR);
+        }
+        result = 2;
         goto cleanup;
     }
     if (!dk1_first_level_route_init(
             app.scene, (uint16_t)app.width,
             app.frontend.player_preview.motion.world_x, &route)) {
-        MessageBoxA(NULL, "Could not initialize the first-level test route.",
-                    "DK1 level test", MB_ICONERROR);
+        write_initialization_failure_report("route_init");
+        if (!preflight_quiet) {
+            MessageBoxA(NULL, "Could not initialize the first-level test route.",
+                        "DK1 level test", MB_ICONERROR);
+        }
+        result = 3;
         goto cleanup;
     }
     if (!dk1_first_level_preflight(
             app.scene, &app.frontend, &app.warmup_stats,
             &route, &preflight)) {
-        char text[320];
         write_preflight_report(&app, &route, &preflight);
-        snprintf(text, sizeof(text),
-                 "Jungle Hijinxs startup preflight failed (mask 0x%08lX). "
-                 "See DK1-Jungle-Hijinxs-Preflight.txt beside the executable.",
-                 (unsigned long)preflight.failure_mask);
-        MessageBoxA(NULL, text, "DK1 level test", MB_ICONERROR);
+        if (!preflight_quiet) {
+            char text[320];
+            snprintf(text, sizeof(text),
+                     "Jungle Hijinxs startup preflight failed (mask 0x%08lX). "
+                     "See DK1-Jungle-Hijinxs-Preflight.txt beside the executable.",
+                     (unsigned long)preflight.failure_mask);
+            MessageBoxA(NULL, text, "DK1 level test", MB_ICONERROR);
+        }
+        result = 4;
         goto cleanup;
     }
     write_preflight_report(&app, &route, &preflight);
     if (preflight_only) {
-        MessageBoxA(NULL,
-                    "Jungle Hijinxs startup preflight passed. Textures, "
-                    "palettes, terrain, objects, dynamic background and the "
-                    "first player frame are ready. The report was written "
-                    "beside the executable.",
-                    "DK1 preflight passed", MB_OK | MB_ICONINFORMATION);
+        if (!preflight_quiet) {
+            MessageBoxA(NULL,
+                        "Jungle Hijinxs startup preflight passed. Textures, "
+                        "palettes, terrain, objects, dynamic background and the "
+                        "first player frame are ready. The report was written "
+                        "beside the executable.",
+                        "DK1 preflight passed", MB_OK | MB_ICONINFORMATION);
+        }
         result = 0;
         goto cleanup;
     }
