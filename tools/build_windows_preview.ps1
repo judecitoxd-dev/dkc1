@@ -107,15 +107,17 @@ Set-Content -Path (Join-Path $packagePath "README.txt") -Value $readme -Encoding
 
 if (-not [string]::IsNullOrWhiteSpace($RomPath)) {
     $resolvedRom = (Resolve-Path $RomPath).Path
+    $quotedRom = '"' + $resolvedRom + '"'
     Write-Host "Running the first-level startup preflight..."
-    $preflightProcess = Start-Process -FilePath $directTarget -ArgumentList @("--preflight", $resolvedRom) -Wait -PassThru
+    $preflightProcess = Start-Process -FilePath $directTarget -ArgumentList @("--preflight", $quotedRom) -WorkingDirectory $repositoryRoot -Wait -PassThru
     if ($preflightProcess.ExitCode -ne 0) {
         throw "The startup preflight failed with exit code $($preflightProcess.ExitCode)."
     }
     $preflightReport = Join-Path $repositoryRoot "DK1-Jungle-Hijinxs-Preflight.txt"
-    if (Test-Path $preflightReport) {
-        Copy-Item $preflightReport $packagePath
+    if (-not (Test-Path $preflightReport)) {
+        throw "The executable exited successfully but did not write the startup preflight report."
     }
+    Copy-Item $preflightReport $packagePath
 }
 
 Remove-Item $outputPath -Force -ErrorAction SilentlyContinue
