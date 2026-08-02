@@ -4,7 +4,7 @@ The next user-facing delivery is intentionally smaller than a faithful full-game
 preview. Its purpose is to get a Windows build into the user's hands quickly and
 collect real play feedback.
 
-Current implementation estimate: **95 percent complete, 5 percent remaining**.
+Current implementation estimate: **97 percent complete, 3 percent remaining**.
 This percentage measures only the fast Windows first-level tester described
 below, not the complete game or a fully faithful Jungle Hijinxs conversion.
 
@@ -28,17 +28,28 @@ Implemented for the fast test:
   certification cannot initialize or validate the level.
 - Use one shared SPC RAM definition and compile both audio-driver headers
   together to prevent the former macro-redefinition warning.
-- Provide a local Visual Studio builder that compiles both Windows executables,
-  builds ROM-backed regressions for compile coverage, runs the key
-  ROM-independent smoke tests, records the build log, packages the result and
-  calculates its SHA-256 without depending on GitHub Actions.
+- Build a portable headless route validator that loads Jungle Hijinxs, searches
+  for valid terrain near six points from 0 to 95 percent, updates camera,
+  dynamic BG1 and object streaming, renders a real frame at every point and
+  verifies provisional completion.
+- Record per-checkpoint world position, camera, active object counts, nonzero
+  pixel count, BG1 generation/columns and frame signatures in a route report.
+- Provide a local Visual Studio builder that compiles the two Windows frontends
+  plus the headless validator, builds ROM-backed regressions for compile
+  coverage, runs key ROM-independent smoke tests, records the build log,
+  packages the result and calculates its SHA-256 without depending on GitHub
+  Actions.
+- Refuse to package a ROM-certified build unless both reports contain
+  `ready=1`, the route report contains six checkpoints and provisional
+  completion is confirmed.
 - Allow a legal ROM to be dragged onto `BUILD-WINDOWS-PREVIEW.bat` to build,
   certify and package in one operation.
-- Package the direct tester and normal shell preview together.
+- Package the direct tester, normal shell preview and route validator together.
 
 The isolated startup-preflight regression compiles and passes with strict C11
-warnings treated as errors. This validates the new certification logic, but is
-not a substitute for the pending full MSVC build and legal-ROM launch.
+warnings treated as errors. The new route validator is connected to strict
+compiler flags and the Windows builder, but still requires the pending full
+MSVC/legal-ROM execution before it can be called certified.
 
 Local Windows build:
 
@@ -46,7 +57,7 @@ Local Windows build:
 ./tools/build_windows_preview.ps1
 ```
 
-Build, certify with a legal ROM and package:
+Build, certify the startup and six route points with a legal ROM, then package:
 
 ```powershell
 ./tools/build_windows_preview.ps1 -RomPath "C:\path\game.sfc"
@@ -61,15 +72,15 @@ BUILD-WINDOWS-PREVIEW.bat
 Remaining before delivery:
 
 - Complete one real full-project MSVC Windows build.
-- Run the newly built direct executable with a supported legal ROM and confirm
-  that the generated preflight report contains `ready=1`.
+- Run startup preflight and the six-point headless route validator with a
+  supported legal ROM, confirming `ready=1` and `route_completed=1`.
 - Fix any compile or first-run defect found by that final execution.
 - Publish the resulting Windows ZIP artifact.
 
 GitHub-hosted Linux and Windows jobs remain unavailable at runner startup: the
-latest validation attempt again terminated before checkout and exposed no steps
-or logs. The local certified builder is now the primary delivery route rather
-than repeatedly retrying an unavailable runner.
+latest validation attempt terminated before checkout and exposed no steps or
+logs. The local certified builder is now the primary delivery route rather than
+repeatedly retrying an unavailable runner.
 
 Deferred until after this fast test:
 
