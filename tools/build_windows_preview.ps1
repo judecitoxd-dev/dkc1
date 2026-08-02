@@ -24,15 +24,12 @@ $outputPath = if ([System.IO.Path]::IsPathRooted($OutputZip)) {
     Join-Path $repositoryRoot $OutputZip
 }
 
-$vswhere = Join-Path ${env:ProgramFiles(x86)} \
-    "Microsoft Visual Studio\Installer\vswhere.exe"
+$vswhere = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio\Installer\vswhere.exe"
 if (-not (Test-Path $vswhere)) {
     throw "Visual Studio Installer/vswhere.exe was not found. Install Visual Studio 2022 Build Tools with Desktop development with C++."
 }
 
-$installationPath = & $vswhere -latest -products * \
-    -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 \
-    -property installationPath
+$installationPath = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
 if ([string]::IsNullOrWhiteSpace($installationPath)) {
     throw "No Visual Studio installation with the MSVC x64 C++ tools was found."
 }
@@ -106,27 +103,23 @@ No ROM or copyrighted extracted assets are included. Both programs read graphics
 and palettes from the user's legal ROM or its validated local cache. This is a
 first-level vertical slice, not a complete game build.
 '@
-Set-Content -Path (Join-Path $packagePath "README.txt") \
-    -Value $readme -Encoding UTF8
+Set-Content -Path (Join-Path $packagePath "README.txt") -Value $readme -Encoding UTF8
 
 if (-not [string]::IsNullOrWhiteSpace($RomPath)) {
     $resolvedRom = (Resolve-Path $RomPath).Path
     Write-Host "Running the first-level startup preflight..."
-    $preflightProcess = Start-Process -FilePath $directTarget \
-        -ArgumentList @("--preflight", $resolvedRom) -Wait -PassThru
+    $preflightProcess = Start-Process -FilePath $directTarget -ArgumentList @("--preflight", $resolvedRom) -Wait -PassThru
     if ($preflightProcess.ExitCode -ne 0) {
         throw "The startup preflight failed with exit code $($preflightProcess.ExitCode)."
     }
-    $preflightReport = Join-Path $repositoryRoot \
-        "DK1-Jungle-Hijinxs-Preflight.txt"
+    $preflightReport = Join-Path $repositoryRoot "DK1-Jungle-Hijinxs-Preflight.txt"
     if (Test-Path $preflightReport) {
         Copy-Item $preflightReport $packagePath
     }
 }
 
 Remove-Item $outputPath -Force -ErrorAction SilentlyContinue
-Compress-Archive -Path (Join-Path $packagePath "*") \
-    -DestinationPath $outputPath -CompressionLevel Optimal
+Compress-Archive -Path (Join-Path $packagePath "*") -DestinationPath $outputPath -CompressionLevel Optimal
 
 $hash = Get-FileHash -Algorithm SHA256 $outputPath
 Write-Host ""
