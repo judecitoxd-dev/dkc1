@@ -52,6 +52,7 @@ static void test_route_progress(void) {
 
 static void test_startup_preflight(void) {
     Dk1SceneMemory scene;
+    Dk1RomImage source_rom;
     Dk1FirstLevelRoute route;
     Dk1SoftwareFrontend frontend;
     Dk1PreviewAssetWarmupStats warmup;
@@ -59,6 +60,7 @@ static void test_startup_preflight(void) {
     Dk1FirstLevelPreflight preflight;
 
     memset(&scene, 0, sizeof(scene));
+    memset(&source_rom, 0, sizeof(source_rom));
     memset(&frontend, 0, sizeof(frontend));
     memset(&warmup, 0, sizeof(warmup));
     memset(&bg1, 0, sizeof(bg1));
@@ -73,7 +75,7 @@ static void test_startup_preflight(void) {
     frontend.runtime.view.width = 384u;
     frontend.runtime.view.height = 224u;
     frontend.dynamic_bg1 = &bg1;
-    frontend.source_rom = (const Dk1RomImage *)&scene;
+    frontend.source_rom = &source_rom;
     frontend.player_terrain_ready = true;
     frontend.level_objects_ready = true;
     bg1.ready = true;
