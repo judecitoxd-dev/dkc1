@@ -1,4 +1,5 @@
 /build/
+/build-*/
 /rom/
 /extracted/
 /generated/
@@ -8,5 +9,8 @@
 *.swc
 *.zip
 *.dk1-assets-*.bin
+/DK1-Jungle-Hijinxs-Preflight.txt
+/DK1-Jungle-Hijinxs-Route-Validation.txt
+/DK1-Jungle-Hijinxs-Test-Report.txt
 __pycache__/
 *.pyc
