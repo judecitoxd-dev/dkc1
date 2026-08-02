@@ -15,12 +15,13 @@
 #define DK1_FIRST_LEVEL_ID 0x0016u
 #define DK1_FIRST_LEVEL_WIDTH 384u
 #define DK1_FIRST_LEVEL_HEIGHT 224u
-#define DK1_FIRST_LEVEL_CHECKPOINT_COUNT 6u
+#define DK1_FIRST_LEVEL_CHECKPOINT_COUNT 7u
 #define DK1_FIRST_LEVEL_SEARCH_RADIUS 96u
 #define DK1_FIRST_LEVEL_SEARCH_STEP 8u
+#define DK1_FIRST_LEVEL_EXIT_TOLERANCE 256u
 
 static const uint8_t checkpoint_percent[DK1_FIRST_LEVEL_CHECKPOINT_COUNT] = {
-    0u, 20u, 40u, 60u, 80u, 95u
+    0u, 20u, 40u, 60u, 80u, 95u, 99u
 };
 
 typedef struct Dk1FirstLevelCheckpointResult {
@@ -190,6 +191,48 @@ static bool validate_checkpoint(const Dk1RomImage *rom,
            result->bg1_columns != 0u;
 }
 
+static bool checkpoint_progress_is_valid(
+    const Dk1FirstLevelCheckpointResult *checkpoints,
+    size_t checkpoint_count,
+    const Dk1FirstLevelRoute *route,
+    uint32_t *exit_distance) {
+    size_t index;
+    const Dk1FirstLevelCheckpointResult *first;
+    const Dk1FirstLevelCheckpointResult *last;
+    bool bg1_advanced = false;
+    bool frame_changed = false;
+
+    if (checkpoints == NULL || checkpoint_count < 2u || route == NULL ||
+        exit_distance == NULL)
+        return false;
+    first = &checkpoints[0];
+    last = &checkpoints[checkpoint_count - 1u];
+
+    for (index = 1u; index < checkpoint_count; ++index) {
+        const Dk1FirstLevelCheckpointResult *previous = &checkpoints[index - 1u];
+        const Dk1FirstLevelCheckpointResult *current = &checkpoints[index];
+        if (!current->placed || !current->stepped || !current->rendered ||
+            current->world_x < previous->world_x ||
+            current->camera_x < previous->camera_x ||
+            current->bg1_generation < previous->bg1_generation ||
+            current->bg1_columns < previous->bg1_columns)
+            return false;
+        if (current->bg1_generation > previous->bg1_generation ||
+            current->bg1_columns > previous->bg1_columns)
+            bg1_advanced = true;
+        if (current->frame_signature != previous->frame_signature)
+            frame_changed = true;
+    }
+
+    *exit_distance = route->exit_x > last->world_x
+        ? route->exit_x - last->world_x
+        : 0u;
+    return first->placed && first->stepped && first->rendered &&
+           bg1_advanced && frame_changed &&
+           first->frame_signature != last->frame_signature &&
+           *exit_distance <= DK1_FIRST_LEVEL_EXIT_TOLERANCE;
+}
+
 static void write_report(
     const char *path,
     const Dk1SceneMemory *scene,
@@ -198,6 +241,8 @@ static void write_report(
     const Dk1FirstLevelCheckpointResult *checkpoints,
     size_t checkpoint_count,
     uint64_t route_signature,
+    uint32_t exit_distance,
+    bool streaming_progress,
     size_t failures) {
     FILE *file;
     size_t index;
@@ -225,6 +270,9 @@ static void write_report(
     fprintf(file, "route_progress=%u\n",
             (unsigned)route->progress_percent);
     fprintf(file, "route_completed=%u\n", route->completed ? 1u : 0u);
+    fprintf(file, "exit_distance=%lu\n", (unsigned long)exit_distance);
+    fprintf(file, "streaming_progress=%u\n",
+            streaming_progress ? 1u : 0u);
     fprintf(file, "route_signature=%016llX\n",
             (unsigned long long)route_signature);
     fprintf(file, "checkpoint_count=%llu\n",
@@ -273,9 +321,11 @@ int main(int argc, char **argv) {
     char cache_path[DK1_SCENE_ASSET_CACHE_PATH_CAPACITY];
     const char *report_path;
     uint64_t route_signature = 0u;
+    uint32_t exit_distance = 0u;
     size_t failures = 0u;
     size_t index;
     int result = 1;
+    bool streaming_progress = false;
 
     memset(&frontend, 0, sizeof(frontend));
     memset(&source_stats, 0, sizeof(source_stats));
@@ -331,9 +381,8 @@ int main(int argc, char **argv) {
         goto cleanup;
     }
     if (!dk1_first_level_preflight(
-            scene, &frontend, &warmup, &route, &preflight)) {
+            scene, &frontend, &warmup, &route, &preflight))
         ++failures;
-    }
 
     for (index = 0u; index < DK1_FIRST_LEVEL_CHECKPOINT_COUNT; ++index) {
         memset(pixels, 0, DK1_FIRST_LEVEL_WIDTH * DK1_FIRST_LEVEL_HEIGHT *
@@ -349,6 +398,12 @@ int main(int argc, char **argv) {
             &checkpoints[index], sizeof(checkpoints[index]), route_signature);
     }
 
+    streaming_progress = checkpoint_progress_is_valid(
+        checkpoints, DK1_FIRST_LEVEL_CHECKPOINT_COUNT, &route,
+        &exit_distance);
+    if (!streaming_progress)
+        ++failures;
+
     dk1_first_level_route_step(&route, route.exit_x);
     if (!route.completed || route.progress_percent != 100u ||
         route.checkpoints_reached != 4u)
@@ -356,14 +411,18 @@ int main(int argc, char **argv) {
 
     write_report(report_path, scene, &route, &preflight,
                  checkpoints, DK1_FIRST_LEVEL_CHECKPOINT_COUNT,
-                 route_signature, failures);
+                 route_signature, exit_distance, streaming_progress,
+                 failures);
     printf("first_level_ready=%u failures=%llu checkpoints=%u "
-           "route=%u%% completed=%u signature=%016llX report=%s\n",
+           "route=%u%% completed=%u streaming=%u exit_distance=%lu "
+           "signature=%016llX report=%s\n",
            failures == 0u ? 1u : 0u,
            (unsigned long long)failures,
            (unsigned)DK1_FIRST_LEVEL_CHECKPOINT_COUNT,
            (unsigned)route.progress_percent,
            route.completed ? 1u : 0u,
+           streaming_progress ? 1u : 0u,
+           (unsigned long)exit_distance,
            (unsigned long long)route_signature,
            report_path);
     result = failures == 0u ? 0 : 1;
