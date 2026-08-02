@@ -38,6 +38,9 @@ int main(void) {
     assert(warmup.scene_palettes_ready);
     assert(warmup.dynamic_bg1_ready);
     assert(warmup.player_visual_ready);
+    assert(warmup.visible_frame_ready);
+    assert(warmup.visible_pixels != 0u);
+    assert(warmup.frame_signature != 0u);
     assert(warmup.scene_packages == scene->assets.package_count);
     assert(warmup.scene_dma_bytes == scene->assets.dma_bytes);
     assert(warmup.player_dma_records != 0u);
