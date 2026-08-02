@@ -79,15 +79,60 @@ static bool warp_direct_test(Dk1Win32App *app,
     return true;
 }
 
-static void write_direct_test_report(const Dk1Win32App *app,
-                                     const Dk1FirstLevelRoute *route,
-                                     uint32_t manual_restarts,
-                                     uint32_t fall_restarts,
-                                     uint32_t debug_warps) {
+static void write_preflight_report(
+    const Dk1Win32App *app,
+    const Dk1FirstLevelRoute *route,
+    const Dk1FirstLevelPreflight *preflight) {
+    FILE *file;
+    if (app == NULL || route == NULL || preflight == NULL)
+        return;
+    file = fopen("DK1-Jungle-Hijinxs-Preflight.txt", "w");
+    if (file == NULL)
+        return;
+    fprintf(file, "DK1 Jungle Hijinxs startup preflight\n");
+    fprintf(file, "ready=%u\n", preflight->ready ? 1u : 0u);
+    fprintf(file, "failure_mask=0x%08lX\n",
+            (unsigned long)preflight->failure_mask);
+    fprintf(file, "scene_packages=%llu\n",
+            (unsigned long long)preflight->scene_packages);
+    fprintf(file, "scene_dma_bytes=%llu\n",
+            (unsigned long long)preflight->scene_dma_bytes);
+    fprintf(file, "initial_map_columns=%llu\n",
+            (unsigned long long)preflight->initial_map_columns);
+    fprintf(file, "initial_tile_words=%llu\n",
+            (unsigned long long)preflight->initial_tile_words);
+    fprintf(file, "player_dma_records=%llu\n",
+            (unsigned long long)preflight->player_dma_records);
+    fprintf(file, "player_dma_bytes=%llu\n",
+            (unsigned long long)preflight->player_dma_bytes);
+    fprintf(file, "route_start_x=%lu\n", (unsigned long)route->start_x);
+    fprintf(file, "route_exit_x=%lu\n", (unsigned long)route->exit_x);
+    fprintf(file, "route_distance=%lu\n",
+            (unsigned long)preflight->route_distance);
+    fprintf(file, "scene_cache_hit=%u\n",
+            app->scene != NULL && app->scene->cache.hit ? 1u : 0u);
+    fprintf(file, "textures_loaded=%u\n",
+            app->scene != NULL && app->scene->assets.textures_loaded ? 1u : 0u);
+    fprintf(file, "palettes_loaded=%u\n",
+            app->scene != NULL && app->scene->assets.palettes_loaded ? 1u : 0u);
+    fprintf(file, "warmup_player_visual=%u\n",
+            app->warmup_stats.player_visual_ready ? 1u : 0u);
+    fprintf(file, "warmup_dynamic_bg1=%u\n",
+            app->warmup_stats.dynamic_bg1_ready ? 1u : 0u);
+    fclose(file);
+}
+
+static void write_direct_test_report(
+    const Dk1Win32App *app,
+    const Dk1FirstLevelRoute *route,
+    const Dk1FirstLevelPreflight *preflight,
+    uint32_t manual_restarts,
+    uint32_t fall_restarts,
+    uint32_t debug_warps) {
     FILE *file;
     uint32_t bg1_generation = 0u;
     size_t bg1_columns = 0u;
-    if (app == NULL || route == NULL)
+    if (app == NULL || route == NULL || preflight == NULL)
         return;
     if (app->frontend.dynamic_bg1 != NULL) {
         bg1_generation = app->frontend.dynamic_bg1->generation;
@@ -97,6 +142,9 @@ static void write_direct_test_report(const Dk1Win32App *app,
     if (file == NULL)
         return;
     fprintf(file, "DK1 Jungle Hijinxs direct test report\n");
+    fprintf(file, "preflight_ready=%u\n", preflight->ready ? 1u : 0u);
+    fprintf(file, "preflight_failure_mask=0x%08lX\n",
+            (unsigned long)preflight->failure_mask);
     fprintf(file, "route_progress=%u\n",
             (unsigned)route->progress_percent);
     fprintf(file, "route_completed=%u\n", route->completed ? 1u : 0u);
@@ -134,6 +182,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous_instance,
     Dk1Win32App app;
     Dk1RgbaSurface surface;
     Dk1FirstLevelRoute route;
+    Dk1FirstLevelPreflight preflight;
     MSG message;
     char rom_path[MAX_PATH];
     ULONGLONG next_frame;
@@ -141,22 +190,29 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous_instance,
     uint32_t manual_restarts = 0u;
     uint32_t fall_restarts = 0u;
     uint32_t debug_warps = 0u;
+    int rom_argument = 1;
     int result = 1;
     bool completion_reported = false;
+    bool preflight_only = false;
     (void)previous_instance;
     (void)command_line;
     (void)show_command;
 
     memset(&app, 0, sizeof(app));
     memset(&route, 0, sizeof(route));
+    memset(&preflight, 0, sizeof(preflight));
     app.level = DK1_DEMO_LEVEL;
     app.width = DK1_DEMO_WIDTH;
     app.height = DK1_DEMO_HEIGHT;
     app.running = true;
     g_app = &app;
 
-    if (__argc >= 2) {
-        strncpy(rom_path, __argv[1], MAX_PATH - 1u);
+    if (__argc >= 2 && strcmp(__argv[1], "--preflight") == 0) {
+        preflight_only = true;
+        rom_argument = 2;
+    }
+    if (__argc > rom_argument) {
+        strncpy(rom_path, __argv[rom_argument], MAX_PATH - 1u);
         rom_path[MAX_PATH - 1u] = '\0';
     } else if (!choose_rom(rom_path)) {
         g_app = NULL;
@@ -176,6 +232,29 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous_instance,
                     "DK1 level test", MB_ICONERROR);
         goto cleanup;
     }
+    if (!dk1_first_level_preflight(
+            app.scene, &app.frontend, &app.warmup_stats,
+            &route, &preflight)) {
+        char text[320];
+        write_preflight_report(&app, &route, &preflight);
+        snprintf(text, sizeof(text),
+                 "Jungle Hijinxs startup preflight failed (mask 0x%08lX). "
+                 "See DK1-Jungle-Hijinxs-Preflight.txt beside the executable.",
+                 (unsigned long)preflight.failure_mask);
+        MessageBoxA(NULL, text, "DK1 level test", MB_ICONERROR);
+        goto cleanup;
+    }
+    write_preflight_report(&app, &route, &preflight);
+    if (preflight_only) {
+        MessageBoxA(NULL,
+                    "Jungle Hijinxs startup preflight passed. Textures, "
+                    "palettes, terrain, objects, dynamic background and the "
+                    "first player frame are ready. The report was written "
+                    "beside the executable.",
+                    "DK1 preflight passed", MB_OK | MB_ICONINFORMATION);
+        result = 0;
+        goto cleanup;
+    }
 
     app.flow.state = DK1_PREVIEW_FLOW_LEVEL;
     app.flow.previous_state = DK1_PREVIEW_FLOW_MAP;
@@ -190,7 +269,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous_instance,
         goto cleanup;
     }
     SetWindowTextA(app.window,
-                   "DK1 Jungle Hijinxs direct test - loading first frame");
+                   "DK1 Jungle Hijinxs direct test - preflight passed");
 
     surface = (Dk1RgbaSurface){app.pixels, (size_t)app.width,
                                (size_t)app.height, (size_t)app.width};
@@ -280,7 +359,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous_instance,
 
         if (app.route_completed && !completion_reported) {
             completion_reported = true;
-            write_direct_test_report(&app, &route,
+            write_direct_test_report(&app, &route, &preflight,
                                      manual_restarts, fall_restarts,
                                      debug_warps);
             MessageBoxA(app.window,
@@ -291,12 +370,12 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous_instance,
         }
 
         if (GetTickCount64() - title_time >= 250u) {
-            char title[560];
+            char title[600];
             snprintf(title, sizeof(title),
-                     "Jungle Hijinxs direct test - route:%u%% checkpoints:%u/4 "
-                     "X:%u restarts:%lu/%lu warps:%lu - textures:%s - A/D "
-                     "move | Z jump | U barrel | F2 skip 10%% | R restart | "
-                     "Esc exit",
+                     "Jungle Hijinxs direct test - preflight:OK route:%u%% "
+                     "checkpoints:%u/4 X:%u restarts:%lu/%lu warps:%lu - "
+                     "textures:%s - A/D move | Z jump | U barrel | F2 skip "
+                     "10%% | R restart | Esc exit",
                      (unsigned)route.progress_percent,
                      (unsigned)route.checkpoints_reached,
                      (unsigned)app.frontend.player_preview.motion.world_x,
@@ -314,7 +393,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous_instance,
         else
             next_frame = GetTickCount64();
     }
-    write_direct_test_report(&app, &route,
+    write_direct_test_report(&app, &route, &preflight,
                              manual_restarts, fall_restarts,
                              debug_warps);
     result = 0;
