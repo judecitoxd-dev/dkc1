@@ -43,18 +43,30 @@ if (-not (Test-Path $developerCommand)) {
 New-Item -ItemType Directory -Force -Path $buildPath | Out-Null
 Remove-Item $buildLog -Force -ErrorAction SilentlyContinue
 
-$configureAndBuild = @(
+$targets = @(
+    "dk1_win32",
+    "dk1_level_test_win32",
+    "test_first_level_route",
+    "test_dynamic_bg1_runtime",
+    "test_software_frontend_dispose",
+    "test_apu_driver_catalog",
+    "test_preview_asset_warmup",
+    "test_level_dynamic_bg1"
+) -join " "
+$smokePattern = "^(first_level_route|dynamic_bg1_runtime|software_frontend_dispose)$"
+$configureBuildAndTest = @(
     "call `"$developerCommand`" -no_logo -arch=$Architecture -host_arch=x64",
     "cmake -S `"$repositoryRoot`" -B `"$buildPath`" -A x64",
-    "cmake --build `"$buildPath`" --config $Configuration --target dk1_win32 dk1_level_test_win32 --parallel"
+    "cmake --build `"$buildPath`" --config $Configuration --target $targets --parallel",
+    "ctest --test-dir `"$buildPath`" -C $Configuration --output-on-failure -R `"$smokePattern`""
 ) -join " && "
 
-Write-Host "Configuring and building the Windows preview..."
-$buildOutput = & $env:COMSPEC /d /s /c $configureAndBuild 2>&1
+Write-Host "Configuring, building and smoke-testing the Windows preview..."
+$buildOutput = & $env:COMSPEC /d /s /c $configureBuildAndTest 2>&1
 $buildExitCode = $LASTEXITCODE
 $buildOutput | Tee-Object -FilePath $buildLog
 if ($buildExitCode -ne 0) {
-    throw "The MSVC build failed with exit code $buildExitCode. See $buildLog"
+    throw "The MSVC build or smoke test failed with exit code $buildExitCode. See $buildLog"
 }
 
 Remove-Item -Recurse -Force $packagePath -ErrorAction SilentlyContinue
@@ -110,7 +122,8 @@ Kongo Jungle map, Jungle Hijinxs and return-to-map flow.
 
 No ROM or copyrighted extracted assets are included. Both programs read graphics
 and palettes from the user's legal ROM or its validated local cache. This is a
-first-level vertical slice, not a complete game build.
+first-level vertical slice, not a complete game build. The package includes the
+MSVC build and ROM-independent smoke-test log.
 '@
 Set-Content -Path (Join-Path $packagePath "README.txt") -Value $readme -Encoding UTF8
 
@@ -141,6 +154,7 @@ $hash = Get-FileHash -Algorithm SHA256 $outputPath
 $manifest = @(
     "configuration=$Configuration",
     "architecture=$Architecture",
+    "smoke_tests=first_level_route,dynamic_bg1_runtime,software_frontend_dispose",
     "rom_preflight=$(-not [string]::IsNullOrWhiteSpace($RomPath))",
     "zip_sha256=$($hash.Hash.ToLowerInvariant())"
 )
