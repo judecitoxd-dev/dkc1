@@ -50,6 +50,29 @@ static void test_route_progress(void) {
     assert(route.frames == 5u);
 }
 
+static void test_preview_unblank(void) {
+    Dk1SceneMemory scene;
+    const size_t display_index =
+        (size_t)(0x2100u - DK1_PPU_REGISTER_FIRST);
+
+    memset(&scene, 0, sizeof(scene));
+    assert(dk1_preview_asset_unblank_scene(&scene));
+    assert(scene.ppu.written[display_index]);
+    assert(scene.ppu.values[display_index] == 0x0Fu);
+    assert(scene.ppu.write_count == 1u);
+    assert(!dk1_preview_asset_unblank_scene(&scene));
+    assert(scene.ppu.write_count == 1u);
+
+    scene.ppu.values[display_index] = 0x8Fu;
+    assert(dk1_preview_asset_unblank_scene(&scene));
+    assert(scene.ppu.values[display_index] == 0x0Fu);
+    assert(scene.ppu.write_count == 1u);
+
+    scene.ppu.values[display_index] = 0x07u;
+    assert(!dk1_preview_asset_unblank_scene(&scene));
+    assert(scene.ppu.values[display_index] == 0x07u);
+}
+
 static void test_startup_preflight(void) {
     Dk1SceneMemory scene;
     Dk1RomImage source_rom;
@@ -90,6 +113,9 @@ static void test_startup_preflight(void) {
     warmup.scene_palettes_ready = true;
     warmup.dynamic_bg1_ready = true;
     warmup.player_visual_ready = true;
+    warmup.visible_pixels = 100u;
+    warmup.frame_signature = 1u;
+    warmup.visible_frame_ready = true;
 
     assert(dk1_first_level_preflight(
         &scene, &frontend, &warmup, &route, &preflight));
@@ -111,6 +137,7 @@ static void test_startup_preflight(void) {
 
 int main(void) {
     test_route_progress();
+    test_preview_unblank();
     test_startup_preflight();
     return 0;
 }
