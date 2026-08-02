@@ -1,8 +1,10 @@
 #include <assert.h>
 #include <string.h>
 #include "dk1/first_level_route.h"
+#include "dk1/preview_asset_warmup.h"
+#include "dk1/software_frontend.h"
 
-int main(void) {
+static void test_route_progress(void) {
     Dk1SceneMemory scene;
     Dk1FirstLevelRoute route;
     uint32_t midpoint;
@@ -46,5 +48,67 @@ int main(void) {
     assert(route.checkpoints_reached == 4u);
     assert(route.completed);
     assert(route.frames == 5u);
+}
+
+static void test_startup_preflight(void) {
+    Dk1SceneMemory scene;
+    Dk1FirstLevelRoute route;
+    Dk1SoftwareFrontend frontend;
+    Dk1PreviewAssetWarmupStats warmup;
+    Dk1DynamicBg1Runtime bg1;
+    Dk1FirstLevelPreflight preflight;
+
+    memset(&scene, 0, sizeof(scene));
+    memset(&frontend, 0, sizeof(frontend));
+    memset(&warmup, 0, sizeof(warmup));
+    memset(&bg1, 0, sizeof(bg1));
+
+    scene.camera.maximum_x = 1000u;
+    scene.assets.package_count = 3u;
+    scene.assets.dma_bytes = 4096u;
+    scene.assets.textures_loaded = true;
+    scene.assets.palettes_loaded = true;
+    assert(dk1_first_level_route_init(&scene, 384u, 128u, &route));
+
+    frontend.runtime.view.width = 384u;
+    frontend.runtime.view.height = 224u;
+    frontend.dynamic_bg1 = &bg1;
+    frontend.source_rom = (const Dk1RomImage *)&scene;
+    frontend.player_terrain_ready = true;
+    frontend.level_objects_ready = true;
+    bg1.ready = true;
+    bg1.map_columns_uploaded = 12u;
+    bg1.tile_words_uploaded = 3072u;
+
+    warmup.scene_packages = 3u;
+    warmup.scene_dma_bytes = 4096u;
+    warmup.player_dma_records = 2u;
+    warmup.player_dma_bytes = 512u;
+    warmup.scene_textures_ready = true;
+    warmup.scene_palettes_ready = true;
+    warmup.dynamic_bg1_ready = true;
+    warmup.player_visual_ready = true;
+
+    assert(dk1_first_level_preflight(
+        &scene, &frontend, &warmup, &route, &preflight));
+    assert(preflight.ready);
+    assert(preflight.failure_mask == 0u);
+    assert(preflight.route_distance == 1192u);
+    assert(preflight.initial_map_columns == 12u);
+    assert(preflight.initial_tile_words == 3072u);
+
+    warmup.player_visual_ready = false;
+    frontend.level_objects_ready = false;
+    assert(!dk1_first_level_preflight(
+        &scene, &frontend, &warmup, &route, &preflight));
+    assert((preflight.failure_mask &
+            DK1_FIRST_LEVEL_PREFLIGHT_PLAYER_VISUAL) != 0u);
+    assert((preflight.failure_mask &
+            DK1_FIRST_LEVEL_PREFLIGHT_OBJECT_STREAM) != 0u);
+}
+
+int main(void) {
+    test_route_progress();
+    test_startup_preflight();
     return 0;
 }
