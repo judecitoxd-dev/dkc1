@@ -1,0 +1,91 @@
+name: Build YI Android APK v0.7
+
+on:
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore Android v0.5 source
+        run: |
+          cat yi_chunk_00 yi_chunk_01 yi_chunk_02 yi_chunk_03 yi_chunk_04 yi_chunk_05 yi_chunk_06 yi_chunk_07 yi_chunk_08 yi_chunk_09 > yi_android_project.zip.b64
+          base64 -d yi_android_project.zip.b64 > yi_android_project.zip
+          echo "6320e7c3251358a720d0a0ebaac01d1d8d107f3151f2f1683dbbe2a25db3788d  yi_android_project.zip" | sha256sum -c -
+          unzip -q yi_android_project.zip
+
+      - name: Apply v0.6 ROM picker and animation fixes
+        run: |
+          cp v06_overrides/MainActivity.java YI_Android_v0.5/app/src/main/java/com/yinative/port/MainActivity.java
+          base64 -d v06_overrides/game_v06.patch.gz.b64 | gzip -d > game_v06.patch
+          patch YI_Android_v0.5/app/src/main/assets/game.js < game_v06.patch
+          sed -i 's/versionCode 5/versionCode 6/' YI_Android_v0.5/app/build.gradle
+          sed -i "s/versionName '0.5.0'/versionName '0.6.0'/" YI_Android_v0.5/app/build.gradle
+          sed -i 's/YI Native Android/YI Native Android v0.6/g' YI_Android_v0.5/app/src/main/res/values/strings.xml
+          sed -i 's/YI Native Android/YI Native Android v0.6/g' YI_Android_v0.5/app/src/main/assets/index.html
+          sed -i 's/Elegir ROM</Elegir ROM .SFC \/ .SMC</' YI_Android_v0.5/app/src/main/assets/index.html
+
+      - name: Apply v0.7 movement controls and platforms
+        run: |
+          cat v07_chunk_00 v07_chunk_01 v07_chunk_02 v07_chunk_03 v07_chunk_04 v07_chunk_05 > /tmp/v07.patch.gz.b64
+          echo "9722b7108ab4a3ca0949fda9ff6d1a576bf8f0607cafacf767da85709e9af115  /tmp/v07.patch.gz.b64" | sha256sum -c -
+          base64 -d /tmp/v07.patch.gz.b64 | gzip -d > /tmp/v07.patch
+          patch -p1 -d YI_Android_v0.5 < /tmp/v07.patch
+          node --check YI_Android_v0.5/app/src/main/assets/game.js
+          node --check YI_Android_v0.5/app/src/main/assets/rom_engine.js
+          grep -Fq "bindButton('up','up')" YI_Android_v0.5/app/src/main/assets/game.js
+          grep -Fq "bindButton('down','down')" YI_Android_v0.5/app/src/main/assets/game.js
+          grep -Fq 'function platformSurface' YI_Android_v0.5/app/src/main/assets/game.js
+          grep -Fq 'versionCode 7' YI_Android_v0.5/app/build.gradle
+          grep -Fq "versionName '0.7.0'" YI_Android_v0.5/app/build.gradle
+          grep -Fq 'id="up"' YI_Android_v0.5/app/src/main/assets/index.html
+          grep -Fq 'id="down"' YI_Android_v0.5/app/src/main/assets/index.html
+          grep -Fq 'clamp(224*aspect,256,640)' YI_Android_v0.5/app/src/main/assets/game.js
+          grep -Fq 'private static final String APP_HOST = "yi.local"' YI_Android_v0.5/app/src/main/java/com/yinative/port/MainActivity.java
+          grep -Fq 'setType("*/*")' YI_Android_v0.5/app/src/main/java/com/yinative/port/MainActivity.java
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Install Android SDK packages
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Build APK
+        working-directory: YI_Android_v0.5
+        run: gradle --no-daemon :app:assembleDebug
+
+      - name: Verify and package APK
+        run: |
+          APK=YI_Android_v0.5/app/build/outputs/apk/debug/app-debug.apk
+          test -s "$APK"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose "$APK"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | tee APK_BADGING.txt
+          cp "$APK" YI_Native_Android_v0.7.apk
+          sha256sum YI_Native_Android_v0.7.apk | tee APK_SHA256.txt
+          cp -a YI_Android_v0.5 YI_Android_Source_v0.7
+          rm -rf YI_Android_Source_v0.7/.gradle YI_Android_Source_v0.7/app/build
+          zip -qr YI_Android_Source_v0.7.zip YI_Android_Source_v0.7
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: YI-Native-Android-v0.7
+          path: |
+            YI_Native_Android_v0.7.apk
+            YI_Android_Source_v0.7.zip
+            APK_SHA256.txt
+            APK_BADGING.txt
+          if-no-files-found: error
