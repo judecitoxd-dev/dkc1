@@ -44,7 +44,7 @@ jobs:
           grep -Fq "versionName '0.7.0'" YI_Android_v0.5/app/build.gradle
           grep -Fq 'id="up"' YI_Android_v0.5/app/src/main/assets/index.html
           grep -Fq 'id="down"' YI_Android_v0.5/app/src/main/assets/index.html
-          grep -Fq 'Math.min(640' YI_Android_v0.5/app/src/main/assets/game.js
+          grep -Fq 'clamp(224*aspect,256,640)' YI_Android_v0.5/app/src/main/assets/game.js
           grep -Fq 'private static final String APP_HOST = "yi.local"' YI_Android_v0.5/app/src/main/java/com/yinative/port/MainActivity.java
           grep -Fq 'setType("*/*")' YI_Android_v0.5/app/src/main/java/com/yinative/port/MainActivity.java
 
