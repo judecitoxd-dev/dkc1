@@ -30,9 +30,9 @@ jobs:
           sed -i 's/Elegir ROM</Elegir ROM .SFC \/ .SMC</' YI_Android_v0.5/app/src/main/assets/index.html
           node --check YI_Android_v0.5/app/src/main/assets/game.js
           node --check YI_Android_v0.5/app/src/main/assets/rom_engine.js
-          grep -q 'https://yi.local/index.html' YI_Android_v0.5/app/src/main/java/com/yinative/port/MainActivity.java
-          grep -q 'setType("\*/\*")' YI_Android_v0.5/app/src/main/java/com/yinative/port/MainActivity.java
-          grep -q 'yoshiFlutter' YI_Android_v0.5/app/src/main/assets/game.js
+          grep -Fq 'https://yi.local/index.html' YI_Android_v0.5/app/src/main/java/com/yinative/port/MainActivity.java
+          grep -Fq 'setType("*/*")' YI_Android_v0.5/app/src/main/java/com/yinative/port/MainActivity.java
+          grep -Fq 'yoshiFlutter' YI_Android_v0.5/app/src/main/assets/game.js
 
       - uses: actions/setup-java@v4
         with:
