@@ -1,4 +1,4 @@
-name: Build YI Android APK v0.6
+name: Build YI Android APK v0.7
 
 on:
   pull_request:
@@ -28,12 +28,23 @@ jobs:
           sed -i 's/YI Native Android/YI Native Android v0.6/g' YI_Android_v0.5/app/src/main/res/values/strings.xml
           sed -i 's/YI Native Android/YI Native Android v0.6/g' YI_Android_v0.5/app/src/main/assets/index.html
           sed -i 's/Elegir ROM</Elegir ROM .SFC \/ .SMC</' YI_Android_v0.5/app/src/main/assets/index.html
+
+      - name: Apply v0.7 movement controls and platforms
+        run: |
+          base64 -d v07_sym.patch.gz.b64 | gzip -d > /tmp/v07.patch
+          patch -p1 -d YI_Android_v0.5 < /tmp/v07.patch
           node --check YI_Android_v0.5/app/src/main/assets/game.js
           node --check YI_Android_v0.5/app/src/main/assets/rom_engine.js
+          grep -Fq "bindButton('up','up')" YI_Android_v0.5/app/src/main/assets/game.js
+          grep -Fq "bindButton('down','down')" YI_Android_v0.5/app/src/main/assets/game.js
+          grep -Fq 'function platformSurface' YI_Android_v0.5/app/src/main/assets/game.js
+          grep -Fq 'versionCode 7' YI_Android_v0.5/app/build.gradle
+          grep -Fq "versionName '0.7.0'" YI_Android_v0.5/app/build.gradle
+          grep -Fq 'id="up"' YI_Android_v0.5/app/src/main/assets/index.html
+          grep -Fq 'id="down"' YI_Android_v0.5/app/src/main/assets/index.html
+          grep -Fq 'Math.min(640' YI_Android_v0.5/app/src/main/assets/game.js
           grep -Fq 'private static final String APP_HOST = "yi.local"' YI_Android_v0.5/app/src/main/java/com/yinative/port/MainActivity.java
-          grep -Fq 'private static final String START_URL = "https://" + APP_HOST + "/index.html"' YI_Android_v0.5/app/src/main/java/com/yinative/port/MainActivity.java
           grep -Fq 'setType("*/*")' YI_Android_v0.5/app/src/main/java/com/yinative/port/MainActivity.java
-          grep -Fq 'yoshiFlutter' YI_Android_v0.5/app/src/main/assets/game.js
 
       - uses: actions/setup-java@v4
         with:
@@ -61,18 +72,18 @@ jobs:
           test -s "$APK"
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose "$APK"
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | tee APK_BADGING.txt
-          cp "$APK" YI_Native_Android_v0.6.apk
-          sha256sum YI_Native_Android_v0.6.apk | tee APK_SHA256.txt
-          cp -a YI_Android_v0.5 YI_Android_Source_v0.6
-          rm -rf YI_Android_Source_v0.6/.gradle YI_Android_Source_v0.6/app/build
-          zip -qr YI_Android_Source_v0.6.zip YI_Android_Source_v0.6
+          cp "$APK" YI_Native_Android_v0.7.apk
+          sha256sum YI_Native_Android_v0.7.apk | tee APK_SHA256.txt
+          cp -a YI_Android_v0.5 YI_Android_Source_v0.7
+          rm -rf YI_Android_Source_v0.7/.gradle YI_Android_Source_v0.7/app/build
+          zip -qr YI_Android_Source_v0.7.zip YI_Android_Source_v0.7
 
       - uses: actions/upload-artifact@v4
         with:
-          name: YI-Native-Android-v0.6
+          name: YI-Native-Android-v0.7
           path: |
-            YI_Native_Android_v0.6.apk
-            YI_Android_Source_v0.6.zip
+            YI_Native_Android_v0.7.apk
+            YI_Android_Source_v0.7.zip
             APK_SHA256.txt
             APK_BADGING.txt
           if-no-files-found: error
