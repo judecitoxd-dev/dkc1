@@ -12,8 +12,9 @@ jobs:
       - uses: actions/checkout@v4
       - name: Restore Android source
         run: |
-          cat yi_android_project.zip.b64.part00 yi_android_project.zip.b64.part01 yi_android_project.zip.b64.part02 > yi_android_project.zip.b64
+          cat yi_chunk_00 yi_chunk_01 yi_chunk_02 yi_chunk_03 yi_chunk_04 yi_chunk_05 yi_chunk_06 yi_chunk_07 yi_chunk_08 yi_chunk_09 > yi_android_project.zip.b64
           base64 -d yi_android_project.zip.b64 > yi_android_project.zip
+          echo "6320e7c3251358a720d0a0ebaac01d1d8d107f3151f2f1683dbbe2a25db3788d  yi_android_project.zip" | sha256sum -c -
           unzip -q yi_android_project.zip
       - uses: actions/setup-java@v4
         with:
